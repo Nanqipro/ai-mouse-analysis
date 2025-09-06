@@ -95,6 +95,9 @@ temp/
 results/
 uploads/
 temp/
+*.xlsx
+*.xls
+*.csv
 
 # Archive files
 *.zip
