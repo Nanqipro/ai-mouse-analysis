@@ -27,7 +27,7 @@
       </h2>
       
       <el-row :gutter="20">
-        <el-col :xs="24" :sm="12" :md="12" :lg="12">
+        <el-col :xs="24" :sm="12" :md="8" :lg="8">
           <div class="feature-card card">
             <div class="feature-icon extraction">
               <el-icon><DataAnalysis /></el-icon>
@@ -46,7 +46,7 @@
           </div>
         </el-col>
         
-        <el-col :xs="24" :sm="12" :md="12" :lg="12">
+        <el-col :xs="24" :sm="12" :md="8" :lg="8">
           <div class="feature-card card">
             <div class="feature-icon clustering">
               <el-icon><PieChart /></el-icon>
@@ -60,6 +60,25 @@
             </ul>
             <el-button type="success" @click="$router.push('/clustering')" class="feature-button">
               开始聚类分析
+              <el-icon class="el-icon--right"><ArrowRight /></el-icon>
+            </el-button>
+          </div>
+        </el-col>
+        
+        <el-col :xs="24" :sm="12" :md="8" :lg="8">
+          <div class="feature-card card">
+            <div class="feature-icon heatmap">
+              <el-icon><TrendCharts /></el-icon>
+            </div>
+            <h3>🔥 热力图分析</h3>
+            <ul class="feature-list">
+              <li>分析特定行为前后时间窗口的神经元活动</li>
+              <li>生成标准化热力图显示钙离子浓度变化</li>
+              <li>支持同一行为或不同行为的组合分析</li>
+              <li>可视化神经元活动模式和时间序列特征</li>
+            </ul>
+            <el-button type="warning" @click="$router.push('/heatmap')" class="feature-button">
+              开始热力图分析
               <el-icon class="el-icon--right"><ArrowRight /></el-icon>
             </el-button>
           </div>
@@ -261,6 +280,10 @@ import {
 
 .feature-icon.clustering {
   background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.feature-icon.heatmap {
+  background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
 }
 
 .feature-card h3 {

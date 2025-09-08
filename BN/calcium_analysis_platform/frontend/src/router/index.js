@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import Home from '../views/Home.vue'
 import Extraction from '../views/Extraction.vue'
 import Clustering from '../views/Clustering.vue'
+import Heatmap from '../views/Heatmap.vue'
 
 const routes = [
   {
@@ -26,6 +27,14 @@ const routes = [
     component: Clustering,
     meta: {
       title: '聚类分析'
+    }
+  },
+  {
+    path: '/heatmap',
+    name: 'Heatmap',
+    component: Heatmap,
+    meta: {
+      title: '热力图分析'
     }
   }
 ]

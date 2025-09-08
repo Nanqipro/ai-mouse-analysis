@@ -26,6 +26,10 @@
               <el-icon><PieChart /></el-icon>
               <span>聚类分析</span>
             </el-menu-item>
+            <el-menu-item index="/heatmap">
+              <el-icon><TrendCharts /></el-icon>
+              <span>热力图分析</span>
+            </el-menu-item>
           </el-menu>
         </div>
       </el-header>
@@ -46,7 +50,7 @@
 </template>
 
 <script setup>
-import { Monitor, House, DataAnalysis, PieChart } from '@element-plus/icons-vue'
+import { Monitor, House, DataAnalysis, PieChart, TrendCharts } from '@element-plus/icons-vue'
 </script>
 
 <style scoped>

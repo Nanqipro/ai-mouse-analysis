@@ -267,8 +267,8 @@
                 show-icon
               >
                 <template #default>
-                  1. 使用图表下方的滑动条缩放到您想要分析的时间范围<br/>
-                  2. 点击"确认当前显示范围"按钮来选择时间范围<br/>
+                  1. 在图表上点击选择起始时间点<br/>
+                  2. 再次点击选择结束时间点<br/>
                   3. 选择完成后，点击"提取选定范围的事件"按钮进行分析
                 </template>
               </el-alert>
@@ -279,11 +279,12 @@
             <div class="chart-controls">
               <el-button
                 type="primary"
-                @click="confirmCurrentRange"
+                @click="resetSelection"
+                :disabled="!selectedTimeRange"
                 style="width: 100%; margin-bottom: 10px"
               >
-                <el-icon><Select /></el-icon>
-                确认当前显示范围为选择范围
+                <el-icon><Delete /></el-icon>
+                重置选择
               </el-button>
             </div>
             
@@ -310,6 +311,45 @@
 
           
 
+        </div>
+        
+        <!-- 特征管理区域 -->
+        <div v-if="previewResult && previewResult.features && previewResult.features.length > 0" class="feature-management card">
+          <h3 class="section-title">
+            <el-icon><Collection /></el-icon>
+            特征管理
+          </h3>
+          
+          <!-- 特征统计信息 -->
+          <div class="feature-stats">
+            <el-descriptions :column="2" size="small" border>
+              <el-descriptions-item label="总特征数">
+                <el-tag type="primary">{{ previewResult.features.length }}</el-tag>
+              </el-descriptions-item>
+              <el-descriptions-item label="手动提取">
+                <el-tag type="success">{{ previewResult.features.filter(f => f.isManualExtracted).length }}</el-tag>
+              </el-descriptions-item>
+              <el-descriptions-item label="自动检测">
+                <el-tag type="info">{{ previewResult.features.filter(f => !f.isManualExtracted).length }}</el-tag>
+              </el-descriptions-item>
+              <el-descriptions-item label="平均振幅">
+                <el-tag>{{ (previewResult.features.reduce((sum, f) => sum + f.amplitude, 0) / previewResult.features.length).toFixed(3) }}</el-tag>
+              </el-descriptions-item>
+            </el-descriptions>
+          </div>
+          
+          <!-- 去重操作按钮 -->
+          <div class="feature-actions" style="margin-top: 15px;">
+            <el-button
+              type="warning"
+              :loading="deduplicateLoading"
+              @click="manualDeduplicate"
+              style="width: 100%"
+            >
+              <el-icon><Delete /></el-icon>
+              手动去重特征列表
+            </el-button>
+          </div>
         </div>
         
         <!-- 批量处理区域 -->
@@ -404,6 +444,9 @@ const chartContainer = ref()
 const interactiveData = ref(null)
 const selectedTimeRange = ref(null)
 const manualExtractLoading = ref(false)
+const deduplicateLoading = ref(false)
+const clickCount = ref(0)
+const startTime = ref(null)
 
 let chartInstance = null
 
@@ -572,6 +615,8 @@ const onPreviewModeChange = async (mode) => {
     // 清理交互式数据
     interactiveData.value = null
     selectedTimeRange.value = null
+    clickCount.value = 0
+    startTime.value = null
     if (chartInstance) {
       chartInstance.dispose()
       chartInstance = null
@@ -671,25 +716,7 @@ const initChart = () => {
         // 移除saveAsImage功能，避免生成大量base64数据导致431错误
       }
     },
-    dataZoom: [{
-      type: 'slider',
-      show: true,
-      xAxisIndex: [0],
-      start: 0,
-      end: 100,
-      bottom: 10,
-      height: 20,
-      filterMode: 'none', // 关键修改：设置为none，确保缩放时不过滤数据
-      handleIcon: 'M10.7,11.9v-1.3H9.3v1.3c-4.9,0.3-8.8,4.4-8.8,9.4c0,5,3.9,9.1,8.8,9.4v1.3h1.3v-1.3c4.9-0.3,8.8-4.4,8.8-9.4C19.5,16.3,15.6,12.2,10.7,11.9z M13.3,24.4H6.7V23.1h6.6V24.4z M13.3,19.6H6.7v-1.4h6.6V19.6z',
-      handleSize: '80%',
-      handleStyle: {
-        color: '#fff',
-        shadowBlur: 3,
-        shadowColor: 'rgba(0, 0, 0, 0.6)',
-        shadowOffsetX: 2,
-        shadowOffsetY: 2
-      }
-    }],
+    // 移除dataZoom滑动条，改为点击选择
     xAxis: {
       type: 'value',
       name: '时间 (s)',
@@ -706,65 +733,166 @@ const initChart = () => {
       name: '钙信号',
       type: 'line',
       data: chartData,
-      symbol: 'none',
+      symbol: 'circle',
+      symbolSize: 0,
       lineStyle: {
         width: 1
       },
-      large: true, // 启用大数据量优化
-      largeThreshold: 1000 // 数据量阈值
+      large: false, // 禁用大数据量优化以确保点击事件正常工作
+      sampling: 'none', // 禁用采样以确保所有数据点都可点击
+      triggerLineEvent: true // 启用线条点击事件
     }]
   }
   
   chartInstance.setOption(option)
   
-  // 监听dataZoom事件（仅用于调试，不自动设置选择范围）
-  chartInstance.on('dataZoom', function(params) {
-    console.log('dataZoom事件触发:', params)
-    // 移除自动设置选择范围的逻辑，让用户手动确认
-  })
-  
-  // 添加一个按钮来手动获取当前显示范围
-  window.getCurrentTimeRange = function() {
-    if (chartInstance) {
-      const option = chartInstance.getOption()
-      const xAxis = option.xAxis[0]
-      const dataZoom = option.dataZoom[0]
+  // 监听图表点击事件 - 使用更通用的方式
+  chartInstance.getZr().on('click', function(event) {
+    console.log('图表区域点击事件触发:', event)
+    
+    // 将像素坐标转换为数据坐标
+    const pointInPixel = [event.offsetX, event.offsetY]
+    const pointInGrid = chartInstance.convertFromPixel('grid', pointInPixel)
+    
+    if (pointInGrid && pointInGrid[0] !== null && pointInGrid[0] !== undefined) {
+      const clickedTime = pointInGrid[0]
+      console.log('点击的时间点:', clickedTime, '当前点击计数:', clickCount.value)
       
-      if (dataZoom && dataZoom.startValue !== undefined && dataZoom.endValue !== undefined) {
-        const startTime = dataZoom.startValue
-        const endTime = dataZoom.endValue
+      if (clickCount.value === 0) {
+        // 第一次点击，设置起始时间
+        startTime.value = clickedTime
+        clickCount.value = 1
+        ElMessage.success(`已选择起始时间: ${clickedTime.toFixed(2)}s，请点击选择结束时间`)
+        
+        // 在图表上标记起始点
+        updateChartMarkLines([{
+          xAxis: clickedTime,
+          lineStyle: { color: '#67C23A', width: 2 },
+          label: { 
+            show: true,
+            formatter: '起始点',
+            position: 'insideEndTop'
+          }
+        }])
+      } else {
+        // 第二次点击，设置结束时间
+        const endTime = clickedTime
+        
+        if (endTime <= startTime.value) {
+          ElMessage.warning('结束时间必须大于起始时间，请重新选择')
+          return
+        }
         
         selectedTimeRange.value = {
-          start: parseFloat(startTime),
+          start: parseFloat(startTime.value),
           end: parseFloat(endTime)
         }
-        console.log('手动获取选择范围:', selectedTimeRange.value)
-        ElMessage.success(`已选择时间范围: ${startTime.toFixed(2)}s - ${endTime.toFixed(2)}s`)
+        clickCount.value = 0
+        
+        ElMessage.success(`已选择时间范围: ${startTime.value.toFixed(2)}s - ${endTime.toFixed(2)}s`)
+        
+        // 在图表上标记起始点和结束点，以及选择区域
+         updateChartMarkLines([
+           {
+             xAxis: startTime.value,
+             lineStyle: { color: '#67C23A', width: 2 },
+             label: { 
+               show: true,
+               formatter: '起始点',
+               position: 'insideEndTop'
+             }
+           },
+           {
+             xAxis: endTime,
+             lineStyle: { color: '#F56C6C', width: 2 },
+             label: { 
+               show: true,
+               formatter: '结束点',
+               position: 'insideEndTop'
+             }
+           }
+         ])
+        
+        // 添加选择区域高亮
+        updateChartMarkArea({
+          xAxis: startTime.value
+        }, {
+          xAxis: endTime
+        })
       }
     }
+   })
+}
+
+// 更新图表标记线
+const updateChartMarkLines = (markLines) => {
+  console.log('更新标记线:', markLines)
+  if (chartInstance) {
+    const option = {
+      series: [{
+        markLine: {
+          data: markLines,
+          symbol: 'none',
+          label: {
+            show: true,
+            position: 'end',
+            color: '#333'
+          },
+          lineStyle: {
+            type: 'solid'
+          }
+        }
+      }]
+    }
+    chartInstance.setOption(option, false, true)
+    console.log('标记线已更新')
   }
 }
 
-// 确认当前显示范围
-const confirmCurrentRange = () => {
+// 更新图表标记区域
+const updateChartMarkArea = (start, end) => {
+  console.log('更新标记区域:', start, end)
   if (chartInstance) {
-    const option = chartInstance.getOption()
-    const dataZoom = option.dataZoom[0]
-    
-    if (dataZoom && dataZoom.startValue !== undefined && dataZoom.endValue !== undefined) {
-      const startTime = dataZoom.startValue
-      const endTime = dataZoom.endValue
-      
-      selectedTimeRange.value = {
-        start: parseFloat(startTime),
-        end: parseFloat(endTime)
-      }
-      console.log('确认选择范围:', selectedTimeRange.value)
-      ElMessage.success(`已选择时间范围: ${startTime.toFixed(2)}s - ${endTime.toFixed(2)}s`)
-    } else {
-      ElMessage.warning('请先使用下方滑动条调整显示范围')
+    const option = {
+      series: [{
+        markArea: {
+          data: [[
+            start,
+            end
+          ]],
+          itemStyle: {
+            color: 'rgba(103, 194, 58, 0.2)'
+          }
+        }
+      }]
     }
+    chartInstance.setOption(option, false, true)
+    console.log('标记区域已更新')
   }
+}
+
+// 重置选择
+const resetSelection = () => {
+  selectedTimeRange.value = null
+  clickCount.value = 0
+  startTime.value = null
+  
+  // 清除图表上的标记
+  if (chartInstance) {
+    const option = {
+      series: [{
+        markLine: {
+          data: []
+        },
+        markArea: {
+          data: []
+        }
+      }]
+    }
+    chartInstance.setOption(option, false, true)
+  }
+  
+  ElMessage.success('已重置选择，请重新点击选择时间范围')
 }
 
 // 提取选定范围的事件
@@ -811,24 +939,69 @@ const extractSelectedRange = async () => {
             isManualExtracted: true
           }))
           
-          // 创建去重函数，基于振幅、持续时间和起始时间进行去重
+          // 创建去重函数，基于多个特征进行更精确的去重
           const isDuplicate = (feature1, feature2) => {
-            const tolerance = 0.001 // 容差值
-            return Math.abs(feature1.amplitude - feature2.amplitude) < tolerance &&
-                   Math.abs(feature1.duration - feature2.duration) < tolerance &&
-                   Math.abs((feature1.start_time || 0) - (feature2.start_time || 0)) < tolerance
+            // 时间容差：0.1秒
+            const timeTolerance = 0.1
+            // 振幅容差：相对误差5%
+            const amplitudeTolerance = Math.max(0.01, Math.abs(feature1.amplitude) * 0.05)
+            // 持续时间容差：0.05秒
+            const durationTolerance = 0.05
+            
+            const timeMatch = Math.abs((feature1.start_time || 0) - (feature2.start_time || 0)) < timeTolerance
+            const amplitudeMatch = Math.abs(feature1.amplitude - feature2.amplitude) < amplitudeTolerance
+            const durationMatch = Math.abs(feature1.duration - feature2.duration) < durationTolerance
+            
+            // 如果有峰值时间，也进行比较
+            let peakTimeMatch = true
+            if (feature1.peak_time !== undefined && feature2.peak_time !== undefined) {
+              peakTimeMatch = Math.abs(feature1.peak_time - feature2.peak_time) < timeTolerance
+            }
+            
+            return timeMatch && amplitudeMatch && durationMatch && peakTimeMatch
           }
           
           // 过滤重复的特征
-          const uniqueNewFeatures = newFeatures.filter(newFeature => 
-            !existingFeatures.some(existingFeature => isDuplicate(newFeature, existingFeature))
-          )
+          const uniqueNewFeatures = newFeatures.filter(newFeature => {
+            const isDuplicateFeature = existingFeatures.some(existingFeature => isDuplicate(newFeature, existingFeature))
+            if (isDuplicateFeature) {
+              console.log('发现重复特征，已过滤:', {
+                start_time: newFeature.start_time,
+                amplitude: newFeature.amplitude,
+                duration: newFeature.duration
+              })
+            }
+            return !isDuplicateFeature
+          })
           
           // 合并特征列表
-          previewResult.value.features = [...existingFeatures, ...uniqueNewFeatures]
+          const mergedFeatures = [...existingFeatures, ...uniqueNewFeatures]
           
-          console.log('检测到事件特征:', response.transients.length, '个，其中', uniqueNewFeatures.length, '个为新特征')
-          ElMessage.success(`手动提取完成，检测到 ${response.transients.length} 个事件特征，其中 ${uniqueNewFeatures.length} 个为新特征`)
+          // 对合并后的特征列表进行全局去重，防止多次操作产生的重复
+          const globalUniqueFeatures = []
+          mergedFeatures.forEach(feature => {
+            const isDuplicateInGlobal = globalUniqueFeatures.some(existingFeature => isDuplicate(feature, existingFeature))
+            if (!isDuplicateInGlobal) {
+              globalUniqueFeatures.push(feature)
+            } else {
+              console.log('全局去重：发现重复特征，已过滤:', {
+                start_time: feature.start_time,
+                amplitude: feature.amplitude,
+                duration: feature.duration
+              })
+            }
+          })
+          
+          previewResult.value.features = globalUniqueFeatures
+          
+          const removedDuplicates = mergedFeatures.length - globalUniqueFeatures.length
+          console.log('检测到事件特征:', response.transients.length, '个，其中', uniqueNewFeatures.length, '个为新特征，全局去重移除', removedDuplicates, '个重复特征')
+          
+          if (removedDuplicates > 0) {
+            ElMessage.success(`手动提取完成，检测到 ${response.transients.length} 个事件特征，其中 ${uniqueNewFeatures.length} 个为新特征，已自动过滤 ${removedDuplicates} 个重复特征`)
+          } else {
+            ElMessage.success(`手动提取完成，检测到 ${response.transients.length} 个事件特征，其中 ${uniqueNewFeatures.length} 个为新特征`)
+          }
         } else {
           // 如果没有现有的预览结果，创建新的
           const featuresWithLabel = response.transients.map(feature => ({
@@ -874,6 +1047,79 @@ onMounted(() => {
   }
   window.addEventListener('error', resizeObserverErrorHandler)
 })
+
+// 手动去重特征列表
+const manualDeduplicate = async () => {
+  if (!previewResult.value || !previewResult.value.features || previewResult.value.features.length === 0) {
+    ElMessage.warning('没有特征数据需要去重')
+    return
+  }
+  
+  deduplicateLoading.value = true
+  
+  try {
+    const originalCount = previewResult.value.features.length
+    
+    // 创建去重函数（与extractSelectedRange中的相同）
+    const isDuplicate = (feature1, feature2) => {
+      // 时间容差：0.1秒
+      const timeTolerance = 0.1
+      // 振幅容差：相对误差5%
+      const amplitudeTolerance = Math.max(0.01, Math.abs(feature1.amplitude) * 0.05)
+      // 持续时间容差：0.05秒
+      const durationTolerance = 0.05
+      
+      const timeMatch = Math.abs((feature1.start_time || 0) - (feature2.start_time || 0)) < timeTolerance
+      const amplitudeMatch = Math.abs(feature1.amplitude - feature2.amplitude) < amplitudeTolerance
+      const durationMatch = Math.abs(feature1.duration - feature2.duration) < durationTolerance
+      
+      // 如果有峰值时间，也进行比较
+      let peakTimeMatch = true
+      if (feature1.peak_time !== undefined && feature2.peak_time !== undefined) {
+        peakTimeMatch = Math.abs(feature1.peak_time - feature2.peak_time) < timeTolerance
+      }
+      
+      return timeMatch && amplitudeMatch && durationMatch && peakTimeMatch
+    }
+    
+    // 执行去重
+    const uniqueFeatures = []
+    let duplicateCount = 0
+    
+    previewResult.value.features.forEach((feature, index) => {
+      const isDuplicateFeature = uniqueFeatures.some(existingFeature => isDuplicate(feature, existingFeature))
+      if (!isDuplicateFeature) {
+        uniqueFeatures.push(feature)
+      } else {
+        duplicateCount++
+        console.log(`去重：移除第${index + 1}个特征（重复）:`, {
+          start_time: feature.start_time,
+          amplitude: feature.amplitude,
+          duration: feature.duration
+        })
+      }
+    })
+    
+    // 更新特征列表
+    previewResult.value.features = uniqueFeatures
+    
+    const removedCount = originalCount - uniqueFeatures.length
+    
+    if (removedCount > 0) {
+      ElMessage.success(`去重完成！原有 ${originalCount} 个特征，移除 ${removedCount} 个重复特征，剩余 ${uniqueFeatures.length} 个特征`)
+      console.log(`手动去重完成：${originalCount} -> ${uniqueFeatures.length}，移除 ${removedCount} 个重复特征`)
+    } else {
+      ElMessage.info(`未发现重复特征，当前共有 ${uniqueFeatures.length} 个特征`)
+      console.log('手动去重完成：未发现重复特征')
+    }
+    
+  } catch (error) {
+    console.error('去重操作失败:', error)
+    ElMessage.error('去重操作失败: ' + (error.message || '未知错误'))
+  } finally {
+    deduplicateLoading.value = false
+  }
+}
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
