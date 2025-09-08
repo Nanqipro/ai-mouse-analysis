@@ -440,6 +440,15 @@ async def heatmap_analysis(
         # 加载数据
         data = load_and_validate_data(str(temp_file))
         
+        # 检查是否有有效的行为数据
+        if 'behavior' in data.columns:
+            unique_behaviors = data['behavior'].unique()
+            if len(unique_behaviors) == 1 and unique_behaviors[0] == 'Unknown':
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"数据文件缺少行为标签信息。当前文件只包含神经元活动数据，无法进行行为热力分析。请上传包含行为标签的数据文件。"
+                )
+        
         # 查找行为配对
         behavior_pairs = find_behavior_pairs(
             data, start_behavior, end_behavior, 
@@ -447,12 +456,17 @@ async def heatmap_analysis(
         )
         
         if not behavior_pairs:
-            raise HTTPException(status_code=400, detail="未找到符合条件的行为配对")
+            available_behaviors = data['behavior'].unique() if 'behavior' in data.columns else []
+            raise HTTPException(
+                status_code=400, 
+                detail=f"未找到从'{start_behavior}'到'{end_behavior}'的行为配对。数据中可用的行为类型: {list(available_behaviors)}"
+            )
         
         # 提取所有行为序列数据
         all_sequence_data = []
         heatmap_images = []
         first_heatmap_order = None
+        valid_pairs_count = 0
         
         for i, (start_begin, start_end, end_begin, end_end) in enumerate(behavior_pairs):
             # 提取行为序列数据
@@ -464,6 +478,7 @@ async def heatmap_analysis(
                 # 标准化数据
                 standardized_data = standardize_neural_data(sequence_data)
                 all_sequence_data.append(standardized_data)
+                valid_pairs_count += 1
                 
                 # 创建热力图
                 fig, current_order = create_behavior_sequence_heatmap(
@@ -473,15 +488,24 @@ async def heatmap_analysis(
                 )
                 
                 # 保存第一个热力图的排序顺序
-                if i == 0 and current_order is not None:
+                if valid_pairs_count == 1 and current_order is not None:
                     first_heatmap_order = current_order
                 
                 # 将图表转换为base64
                 plot_base64 = save_plot_as_base64(fig)
                 heatmap_images.append({
-                    "title": f"行为配对 {i+1} 热力图",
+                    "title": f"行为配对 {valid_pairs_count} 热力图",
                     "url": f"data:image/png;base64,{plot_base64}"
                 })
+            else:
+                print(f"跳过行为配对 {i+1}: 时间范围超出数据范围")
+        
+        # 检查是否有有效的序列数据
+        if not all_sequence_data:
+            raise HTTPException(
+                status_code=400,
+                detail=f"无法提取有效的行为序列数据。所有找到的行为配对的时间范围都超出了数据范围。请检查行为时间和预行为时间设置。"
+            )
         
         # 创建平均热力图
         if len(all_sequence_data) > 1:
@@ -516,7 +540,23 @@ async def heatmap_analysis(
         # 清理临时文件
         if 'temp_file' in locals() and temp_file.exists():
             temp_file.unlink()
-        raise HTTPException(status_code=500, detail=str(e))
+        
+        # 详细的错误日志记录
+        import traceback
+        error_details = {
+            "error_type": type(e).__name__,
+            "error_message": str(e),
+            "traceback": traceback.format_exc()
+        }
+        print(f"行为热力分析错误详情: {error_details}")
+        
+        # 如果是HTTPException，直接重新抛出以保持原始错误信息
+        if isinstance(e, HTTPException):
+            raise e
+        
+        # 对于其他异常，提供详细的错误信息
+        error_message = str(e) if str(e) else f"未知错误: {type(e).__name__}"
+        raise HTTPException(status_code=500, detail=f"分析失败: {error_message}")
 
 @app.post("/api/heatmap/overall")
 async def overall_heatmap_analysis(

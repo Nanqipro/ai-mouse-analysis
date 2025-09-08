@@ -336,15 +336,15 @@
           
           <div class="result-content">
             <div class="result-summary">
-              <el-descriptions :column="3" border>
-                <el-descriptions-item label="分析文件">{{ overallAnalysisResult.filename }}</el-descriptions-item>
-                <el-descriptions-item label="神经元数量">{{ overallAnalysisResult.neuron_count }}</el-descriptions-item>
-                <el-descriptions-item label="排序方式">{{ overallAnalysisResult.sort_method }}</el-descriptions-item>
-                <el-descriptions-item label="钙波阈值">{{ overallAnalysisResult.calcium_wave_threshold }}</el-descriptions-item>
-                <el-descriptions-item label="时间范围">{{ overallAnalysisResult.time_range }}</el-descriptions-item>
-                <el-descriptions-item label="分析状态">{{ overallAnalysisResult.status }}</el-descriptions-item>
-              </el-descriptions>
-            </div>
+               <el-descriptions :column="3" border>
+                 <el-descriptions-item label="分析文件">{{ overallAnalysisResult.filename }}</el-descriptions-item>
+                 <el-descriptions-item label="神经元数量">{{ overallAnalysisResult.analysis_info?.neuron_count || 0 }}</el-descriptions-item>
+                 <el-descriptions-item label="排序方式">{{ overallAnalysisResult.config?.sort_method || overallAnalysisResult.analysis_info?.sort_method }}</el-descriptions-item>
+                 <el-descriptions-item label="钙波阈值">{{ overallAnalysisResult.config?.calcium_wave_threshold }}</el-descriptions-item>
+                 <el-descriptions-item label="时间范围">{{ formatTimeRange(overallAnalysisResult.analysis_info?.time_range) }}</el-descriptions-item>
+                 <el-descriptions-item label="分析状态">{{ overallAnalysisResult.success ? '成功' : '失败' }}</el-descriptions-item>
+               </el-descriptions>
+             </div>
             
             <div v-if="overallAnalysisResult.heatmap_image" class="overall-heatmap-display">
               <h4>整体热力图</h4>
@@ -418,25 +418,25 @@
         />
         <div class="modal-behavior-info">
           <el-descriptions :column="2" border>
-            <el-descriptions-item label="热力图类型">
-              整体热力图
-            </el-descriptions-item>
-            <el-descriptions-item label="排序方式">
-              {{ overallAnalysisResult?.sort_method || '' }}
-            </el-descriptions-item>
-            <el-descriptions-item label="神经元数量">
-              {{ overallAnalysisResult?.neuron_count || 0 }}
-            </el-descriptions-item>
-            <el-descriptions-item label="钙波阈值">
-              {{ overallAnalysisResult?.calcium_wave_threshold || 0 }}
-            </el-descriptions-item>
-            <el-descriptions-item label="时间范围">
-              {{ overallAnalysisResult?.time_range || '' }}
-            </el-descriptions-item>
-            <el-descriptions-item label="分析参数">
-              最小突出度: {{ overallParams.min_prominence }}, 最小上升率: {{ overallParams.min_rise_rate }}
-            </el-descriptions-item>
-          </el-descriptions>
+             <el-descriptions-item label="热力图类型">
+               整体热力图
+             </el-descriptions-item>
+             <el-descriptions-item label="排序方式">
+               {{ overallAnalysisResult?.config?.sort_method || overallAnalysisResult?.analysis_info?.sort_method || '' }}
+             </el-descriptions-item>
+             <el-descriptions-item label="神经元数量">
+               {{ overallAnalysisResult?.analysis_info?.neuron_count || 0 }}
+             </el-descriptions-item>
+             <el-descriptions-item label="钙波阈值">
+               {{ overallAnalysisResult?.config?.calcium_wave_threshold || 0 }}
+             </el-descriptions-item>
+             <el-descriptions-item label="时间范围">
+               {{ formatTimeRange(overallAnalysisResult?.analysis_info?.time_range) }}
+             </el-descriptions-item>
+             <el-descriptions-item label="分析参数">
+               最小突出度: {{ overallAnalysisResult?.config?.min_prominence || overallParams.min_prominence }}, 最小上升率: {{ overallAnalysisResult?.config?.min_rise_rate || overallParams.min_rise_rate }}
+             </el-descriptions-item>
+           </el-descriptions>
         </div>
       </div>
     </el-dialog>
@@ -825,6 +825,14 @@ const openOverallHeatmapModal = () => {
 // 关闭整体热力图模态框
 const closeOverallHeatmapModal = () => {
   overallHeatmapModalVisible.value = false
+}
+
+// 格式化时间范围
+const formatTimeRange = (timeRange) => {
+  if (!timeRange || !timeRange.min || !timeRange.max) {
+    return '未知'
+  }
+  return `${timeRange.min.toFixed(2)} - ${timeRange.max.toFixed(2)}`
 }
 </script>
 

@@ -226,14 +226,21 @@ def load_and_validate_data(file_path: str) -> pd.DataFrame:
     data = pd.read_excel(file_path)
     
     # 验证必要列是否存在
-    if 'stamp' not in data.columns:
-        raise ValueError("数据文件缺少 'stamp' 列")
+    time_column = None
+    if 'stamp' in data.columns:
+        time_column = 'stamp'
+    elif 'time' in data.columns:
+        time_column = 'time'
+    else:
+        raise ValueError("数据文件缺少时间列（'stamp' 或 'time'）")
     
     if 'behavior' not in data.columns:
-        raise ValueError("数据文件缺少 'behavior' 列")
+        # 如果没有behavior列，创建一个默认的behavior列
+        print("警告: 数据文件缺少 'behavior' 列，将创建默认行为标签")
+        data['behavior'] = 'Unknown'
     
     # 设置时间戳为索引
-    data = data.set_index('stamp')
+    data = data.set_index(time_column)
     
     return data
 
