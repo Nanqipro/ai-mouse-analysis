@@ -30,6 +30,10 @@ from src.heatmap_behavior import (
     create_average_sequence_heatmap,
     get_global_neuron_order
 )
+from src.overall_heatmap import (
+    OverallHeatmapConfig,
+    generate_overall_heatmap
+)
 import numpy as np
 from src.utils import save_plot_as_base64
 import base64
@@ -513,6 +517,73 @@ async def heatmap_analysis(
         if 'temp_file' in locals() and temp_file.exists():
             temp_file.unlink()
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/heatmap/overall")
+async def overall_heatmap_analysis(
+    file: UploadFile = File(...),
+    stamp_min: Optional[float] = Form(None),
+    stamp_max: Optional[float] = Form(None),
+    sort_method: str = Form("peak"),
+    calcium_wave_threshold: float = Form(1.5),
+    min_prominence: float = Form(1.0),
+    min_rise_rate: float = Form(0.1),
+    max_fall_rate: float = Form(0.05)
+):
+    """整体热力图分析"""
+    try:
+        # 保存上传的文件
+        temp_file = TEMP_DIR / f"overall_heatmap_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{file.filename}"
+        with open(temp_file, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        print(f"整体热力图分析，文件: {temp_file}")
+        
+        # 读取数据
+        data = pd.read_excel(temp_file)
+        print(f"数据加载成功，形状: {data.shape}")
+        
+        # 创建配置对象
+        config = OverallHeatmapConfig()
+        config.STAMP_MIN = stamp_min
+        config.STAMP_MAX = stamp_max
+        config.SORT_METHOD = sort_method
+        config.CALCIUM_WAVE_THRESHOLD = calcium_wave_threshold
+        config.MIN_PROMINENCE = min_prominence
+        config.MIN_RISE_RATE = min_rise_rate
+        config.MAX_FALL_RATE = max_fall_rate
+        
+        # 生成整体热力图
+        fig, info = generate_overall_heatmap(data, config)
+        
+        # 将图表转换为base64
+        plot_base64 = save_plot_as_base64(fig)
+        
+        # 清理临时文件
+        temp_file.unlink()
+        
+        return {
+            "success": True,
+            "filename": file.filename,
+            "heatmap_image": f"data:image/png;base64,{plot_base64}",
+            "analysis_info": info,
+            "config": {
+                "stamp_min": stamp_min,
+                "stamp_max": stamp_max,
+                "sort_method": sort_method,
+                "calcium_wave_threshold": calcium_wave_threshold,
+                "min_prominence": min_prominence,
+                "min_rise_rate": min_rise_rate,
+                "max_fall_rate": max_fall_rate
+            },
+            "message": "整体热力图生成完成"
+        }
+        
+    except Exception as e:
+        print(f"整体热力图分析错误: {e}")
+        # 清理临时文件
+        if 'temp_file' in locals() and temp_file.exists():
+            temp_file.unlink()
+        raise HTTPException(status_code=500, detail=f"整体热力图分析失败: {str(e)}")
 
 @app.get("/api/download/{filename}")
 async def download_file(filename: str):

@@ -110,6 +110,56 @@
               </el-select>
               <div class="param-help">神经元在热力图中的排列方式</div>
             </el-form-item>
+            
+            <!-- 整体热力图参数 -->
+            <el-divider content-position="left">整体热力图参数</el-divider>
+            
+            <el-form-item label="时间范围开始">
+              <el-input-number
+                v-model="overallParams.stamp_min"
+                :min="0"
+                :step="1"
+                :precision="2"
+                style="width: 100%"
+                placeholder="留空表示从头开始"
+              />
+              <div class="param-help">开始时间戳（秒）</div>
+            </el-form-item>
+            
+            <el-form-item label="时间范围结束">
+              <el-input-number
+                v-model="overallParams.stamp_max"
+                :min="0"
+                :step="1"
+                :precision="2"
+                style="width: 100%"
+                placeholder="留空表示到结尾"
+              />
+              <div class="param-help">结束时间戳（秒）</div>
+            </el-form-item>
+            
+            <el-form-item label="排序方式">
+              <el-select
+                v-model="overallParams.sort_method"
+                style="width: 100%"
+              >
+                <el-option label="按峰值时间排序" value="peak" />
+                <el-option label="按钙波时间排序" value="calcium_wave" />
+              </el-select>
+              <div class="param-help">神经元排序算法</div>
+            </el-form-item>
+            
+            <el-form-item label="钙波阈值">
+              <el-input-number
+                v-model="overallParams.calcium_wave_threshold"
+                :min="0.1"
+                :max="5.0"
+                :step="0.1"
+                :precision="1"
+                style="width: 100%"
+              />
+              <div class="param-help">标准差的倍数</div>
+            </el-form-item>
           </el-form>
         </div>
       </el-col>
@@ -176,7 +226,17 @@
               @click="startAnalysis"
             >
               <el-icon><VideoPlay /></el-icon>
-              开始分析
+              行为热力图分析
+            </el-button>
+            
+            <el-button
+              type="warning"
+              :loading="overallAnalysisLoading"
+              :disabled="!hasFile"
+              @click="startOverallAnalysis"
+            >
+              <el-icon><TrendCharts /></el-icon>
+              整体热力图分析
             </el-button>
             
             <el-button
@@ -266,6 +326,42 @@
             </div>
           </div>
         </div>
+        
+        <!-- 整体热力图结果展示 -->
+        <div v-if="overallAnalysisResult" class="result-section card">
+          <h3 class="section-title">
+            <el-icon><TrendCharts /></el-icon>
+            整体热力图分析结果
+          </h3>
+          
+          <div class="result-content">
+            <div class="result-summary">
+              <el-descriptions :column="3" border>
+                <el-descriptions-item label="分析文件">{{ overallAnalysisResult.filename }}</el-descriptions-item>
+                <el-descriptions-item label="神经元数量">{{ overallAnalysisResult.neuron_count }}</el-descriptions-item>
+                <el-descriptions-item label="排序方式">{{ overallAnalysisResult.sort_method }}</el-descriptions-item>
+                <el-descriptions-item label="钙波阈值">{{ overallAnalysisResult.calcium_wave_threshold }}</el-descriptions-item>
+                <el-descriptions-item label="时间范围">{{ overallAnalysisResult.time_range }}</el-descriptions-item>
+                <el-descriptions-item label="分析状态">{{ overallAnalysisResult.status }}</el-descriptions-item>
+              </el-descriptions>
+            </div>
+            
+            <div v-if="overallAnalysisResult.heatmap_image" class="overall-heatmap-display">
+              <h4>整体热力图</h4>
+              <div class="overall-heatmap-container">
+                <img 
+                  :src="overallAnalysisResult.heatmap_image" 
+                  alt="整体热力图" 
+                  class="overall-heatmap-image" 
+                  @click="openOverallHeatmapModal"
+                />
+                <div class="overall-heatmap-info">
+                  <el-tag type="info" size="small">点击查看大图</el-tag>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </el-col>
     </el-row>
 
@@ -304,6 +400,46 @@
         </div>
       </div>
     </el-dialog>
+    
+    <!-- 整体热力图放大模态框 -->
+    <el-dialog
+      v-model="overallHeatmapModalVisible"
+      title="整体热力图详情"
+      width="90%"
+      center
+      :before-close="closeOverallHeatmapModal"
+    >
+      <div class="modal-heatmap-container">
+        <img 
+          v-if="overallAnalysisResult?.heatmap_image"
+          :src="overallAnalysisResult.heatmap_image" 
+          alt="整体热力图" 
+          class="modal-heatmap-image"
+        />
+        <div class="modal-behavior-info">
+          <el-descriptions :column="2" border>
+            <el-descriptions-item label="热力图类型">
+              整体热力图
+            </el-descriptions-item>
+            <el-descriptions-item label="排序方式">
+              {{ overallAnalysisResult?.sort_method || '' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="神经元数量">
+              {{ overallAnalysisResult?.neuron_count || 0 }}
+            </el-descriptions-item>
+            <el-descriptions-item label="钙波阈值">
+              {{ overallAnalysisResult?.calcium_wave_threshold || 0 }}
+            </el-descriptions-item>
+            <el-descriptions-item label="时间范围">
+              {{ overallAnalysisResult?.time_range || '' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="分析参数">
+              最小突出度: {{ overallParams.min_prominence }}, 最小上升率: {{ overallParams.min_rise_rate }}
+            </el-descriptions-item>
+          </el-descriptions>
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -332,10 +468,17 @@ const analysisLoading = ref(false)
 const behaviorEvents = ref([])
 const analysisResult = ref(null)
 
+// 整体热力图相关
+const overallAnalysisLoading = ref(false)
+const overallAnalysisResult = ref(null)
+
 // 热力图模态框相关
 const heatmapModalVisible = ref(false)
 const selectedHeatmap = ref(null)
 const selectedHeatmapIndex = ref(-1)
+
+// 整体热力图模态框相关
+const overallHeatmapModalVisible = ref(false)
 
 // 行为选项（这些可以从上传的文件中动态获取）
 const behaviorOptions = [
@@ -363,6 +506,17 @@ const params = reactive({
   sampling_rate: 4.8,
   min_behavior_duration: 1.0,
   sorting_method: 'first'
+})
+
+// 整体热力图参数配置
+const overallParams = reactive({
+  stamp_min: null,
+  stamp_max: null,
+  sort_method: 'peak',
+  calcium_wave_threshold: 1.5,
+  min_prominence: 1.0,
+  min_rise_rate: 0.1,
+  max_fall_rate: 0.05
 })
 
 // 监听参数变化
@@ -551,6 +705,76 @@ const startAnalysis = async () => {
   }
 }
 
+// 开始整体热力图分析
+const startOverallAnalysis = async () => {
+  if (fileList.value.length === 0) {
+    ElMessage.warning('请先上传数据文件')
+    return
+  }
+  
+  overallAnalysisLoading.value = true
+  
+  try {
+    // 创建FormData对象
+    const formData = new FormData()
+    formData.append('file', fileList.value[0].raw)
+    
+    // 添加整体热力图参数
+    if (overallParams.stamp_min !== null) {
+      formData.append('stamp_min', overallParams.stamp_min.toString())
+    }
+    if (overallParams.stamp_max !== null) {
+      formData.append('stamp_max', overallParams.stamp_max.toString())
+    }
+    formData.append('sort_method', overallParams.sort_method)
+    formData.append('calcium_wave_threshold', overallParams.calcium_wave_threshold.toString())
+    formData.append('min_prominence', overallParams.min_prominence.toString())
+    formData.append('min_rise_rate', overallParams.min_rise_rate.toString())
+    formData.append('max_fall_rate', overallParams.max_fall_rate.toString())
+    
+    console.log('发送整体热力图分析请求参数:', {
+      file: fileList.value[0].raw.name,
+      stamp_min: overallParams.stamp_min,
+      stamp_max: overallParams.stamp_max,
+      sort_method: overallParams.sort_method,
+      calcium_wave_threshold: overallParams.calcium_wave_threshold,
+      min_prominence: overallParams.min_prominence,
+      min_rise_rate: overallParams.min_rise_rate,
+      max_fall_rate: overallParams.max_fall_rate
+    })
+    
+    // 调用后端API
+    const response = await fetch('http://localhost:8000/api/heatmap/overall', {
+      method: 'POST',
+      body: formData
+    })
+    
+    console.log('整体热力图API响应状态:', response.status)
+    
+    if (!response.ok) {
+      const errorData = await response.json()
+      console.error('整体热力图API错误响应:', errorData)
+      throw new Error(errorData.detail || '整体热力图分析失败')
+    }
+    
+    const result = await response.json()
+    console.log('整体热力图API成功响应:', result)
+    
+    overallAnalysisResult.value = result
+    
+    if (result.heatmap_image) {
+      ElMessage.success('整体热力图分析完成！')
+    } else {
+      ElMessage.warning('整体热力图分析完成，但没有生成图像')
+    }
+  } catch (error) {
+    console.error('整体热力图分析失败:', error)
+    ElMessage.error('整体热力图分析失败: ' + (error.message || '未知错误'))
+  } finally {
+    overallAnalysisLoading.value = false
+  }
+}
+
 // 调试按钮状态
 const debugButtonState = () => {
   console.log('=== 调试按钮状态 ===')
@@ -591,6 +815,16 @@ const closeHeatmapModal = () => {
   heatmapModalVisible.value = false
   selectedHeatmap.value = null
   selectedHeatmapIndex.value = -1
+}
+
+// 打开整体热力图模态框
+const openOverallHeatmapModal = () => {
+  overallHeatmapModalVisible.value = true
+}
+
+// 关闭整体热力图模态框
+const closeOverallHeatmapModal = () => {
+  overallHeatmapModalVisible.value = false
 }
 </script>
 
@@ -722,6 +956,37 @@ const closeHeatmapModal = () => {
 
 .mx-2 {
   margin: 0 8px;
+}
+
+/* 整体热力图样式 */
+.overall-heatmap-display h4 {
+  margin-bottom: 15px;
+  color: #2c3e50;
+}
+
+.overall-heatmap-container {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.overall-heatmap-image {
+  max-width: 100%;
+  height: auto;
+  border: 1px solid #dcdfe6;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.overall-heatmap-image:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-color: #409eff;
+  transform: scale(1.02);
+}
+
+.overall-heatmap-info {
+  margin-top: 10px;
 }
 
 /* 响应式设计 */
