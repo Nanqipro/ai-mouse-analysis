@@ -13,911 +13,962 @@
       class="info-alert"
     >
       <template #default>
-        在此页面，您可以：<br>
-        1. <strong>数据上传</strong>: 上传包含钙信号数据和行为标签的 Excel 文件。<br>
-        2. <strong>行为分析</strong>: 选择起始和结束行为，设置分析参数。<br>
-        3. <strong>热力图生成</strong>: 生成特定行为前后时间窗口的神经元活动热力图。
+        在此页面，您可以选择不同的热力图分析类型：<br>
+        1. <strong>行为序列热力图</strong>: 分析特定行为前后时间窗口的神经元活动模式<br>
+        2. <strong>EM排序热力图</strong>: 基于峰值或钙波时间对神经元进行排序的热力图<br>
+        3. <strong>多天数据组合热力图</strong>: 对比分析多天实验数据的神经元活动变化
       </template>
     </el-alert>
 
-    <el-row :gutter="20">
-      <!-- 左侧参数面板 -->
-      <el-col :xs="24" :sm="24" :md="8" :lg="6">
-        <div class="params-panel card">
-          <h3 class="section-title">
-            <el-icon><Setting /></el-icon>
-            分析参数
-          </h3>
-          
-          <el-form :model="params" label-width="120px" size="small">
-            <el-form-item label="起始行为">
-              <el-select
-                v-model="params.start_behavior"
-                placeholder="选择起始行为"
-                style="width: 100%"
-              >
-                <el-option
-                  v-for="behavior in behaviorOptions"
-                  :key="behavior.value"
-                  :label="behavior.label"
-                  :value="behavior.value"
-                />
-              </el-select>
-              <div class="param-help">分析从此行为开始</div>
-            </el-form-item>
-            
-            <el-form-item label="结束行为">
-              <el-select
-                v-model="params.end_behavior"
-                placeholder="选择结束行为"
-                style="width: 100%"
-              >
-                <el-option
-                  v-for="behavior in behaviorOptions"
-                  :key="behavior.value"
-                  :label="behavior.label"
-                  :value="behavior.value"
-                />
-              </el-select>
-              <div class="param-help">分析到此行为结束</div>
-            </el-form-item>
-            
-            <el-form-item label="行为前时间">
-              <el-input-number
-                v-model="params.pre_behavior_time"
-                :min="1"
-                :max="60"
-                :step="1"
-                :precision="1"
-                style="width: 100%"
-              />
-              <div class="param-help">单位：秒</div>
-            </el-form-item>
-            
-            <el-form-item label="采样频率">
-              <el-input-number
-                v-model="params.sampling_rate"
-                :min="0.1"
-                :max="100"
-                :step="0.1"
-                :precision="1"
-                style="width: 100%"
-              />
-              <div class="param-help">单位：Hz</div>
-            </el-form-item>
-            
-            <el-form-item label="最小持续时间">
-              <el-input-number
-                v-model="params.min_behavior_duration"
-                :min="0.1"
-                :max="10"
-                :step="0.1"
-                :precision="1"
-                style="width: 100%"
-              />
-              <div class="param-help">单位：秒</div>
-            </el-form-item>
-            
-            <el-form-item label="神经元排序">
-              <el-select
-                v-model="params.sorting_method"
-                style="width: 100%"
-              >
-                <el-option label="全局排序" value="global" />
-                <el-option label="局部排序" value="local" />
-                <el-option label="首图排序" value="first" />
-                <el-option label="自定义排序" value="custom" />
-              </el-select>
-              <div class="param-help">神经元在热力图中的排列方式</div>
-            </el-form-item>
-            
-            <!-- 整体热力图参数 -->
-            <el-divider content-position="left">整体热力图参数</el-divider>
-            
-            <el-form-item label="时间范围开始">
-              <el-input-number
-                v-model="overallParams.stamp_min"
-                :min="0"
-                :step="1"
-                :precision="2"
-                style="width: 100%"
-                placeholder="留空表示从头开始"
-              />
-              <div class="param-help">开始时间戳（秒）</div>
-            </el-form-item>
-            
-            <el-form-item label="时间范围结束">
-              <el-input-number
-                v-model="overallParams.stamp_max"
-                :min="0"
-                :step="1"
-                :precision="2"
-                style="width: 100%"
-                placeholder="留空表示到结尾"
-              />
-              <div class="param-help">结束时间戳（秒）</div>
-            </el-form-item>
-            
-            <el-form-item label="排序方式">
-              <el-select
-                v-model="overallParams.sort_method"
-                style="width: 100%"
-              >
-                <el-option label="按峰值时间排序" value="peak" />
-                <el-option label="按钙波时间排序" value="calcium_wave" />
-              </el-select>
-              <div class="param-help">神经元排序算法</div>
-            </el-form-item>
-            
-            <el-form-item label="钙波阈值">
-              <el-input-number
-                v-model="overallParams.calcium_wave_threshold"
-                :min="0.1"
-                :max="5.0"
-                :step="0.1"
-                :precision="1"
-                style="width: 100%"
-              />
-              <div class="param-help">标准差的倍数</div>
-            </el-form-item>
-          </el-form>
-        </div>
-      </el-col>
-      
-      <!-- 右侧主要内容区域 -->
-      <el-col :xs="24" :sm="24" :md="16" :lg="18">
-        <!-- 文件上传区域 -->
-        <div class="upload-section card">
-          <h3 class="section-title">
-            <el-icon><Upload /></el-icon>
-            数据文件上传
-          </h3>
-          
-          <el-upload
-            ref="uploadRef"
-            :on-change="handleFileChange"
-            :on-remove="handleFileRemove"
-            :before-upload="() => false"
-            accept=".xlsx,.xls"
-            drag
-            :limit="1"
-          >
-            <el-icon class="el-icon--upload"><upload-filled /></el-icon>
-            <div class="el-upload__text">
-              将文件拖到此处，或<em>点击上传</em>
-            </div>
-            <template #tip>
-              <div class="el-upload__tip">
-                支持 Excel 文件格式 (.xlsx, .xls)，文件应包含钙信号数据和行为标签
-              </div>
-            </template>
-          </el-upload>
-        </div>
-        
-        <!-- 行为检测结果 -->
-        <div v-if="behaviorEvents.length > 0" class="behavior-events card">
-          <h3 class="section-title">
-            <el-icon><View /></el-icon>
-            检测到的行为事件
-          </h3>
-          
-          <el-table :data="behaviorEvents" style="width: 100%" size="small">
-            <el-table-column prop="index" label="序号" width="60" />
-            <el-table-column prop="start_behavior" label="起始行为" />
-            <el-table-column prop="end_behavior" label="结束行为" />
-            <el-table-column prop="start_time" label="开始时间(s)" width="100" />
-            <el-table-column prop="end_time" label="结束时间(s)" width="100" />
-            <el-table-column prop="duration" label="持续时间(s)" width="100" />
-          </el-table>
-        </div>
-        
-        <!-- 分析控制区域 -->
-        <div class="analysis-section card">
-          <h3 class="section-title">
-            <el-icon><DataAnalysis /></el-icon>
-            热力图分析
-          </h3>
-          
-          <div class="analysis-controls">
-            <el-button
-              type="primary"
-              :loading="analysisLoading"
-              :disabled="!hasFile || !params.start_behavior || !params.end_behavior"
-              @click="startAnalysis"
-            >
-              <el-icon><VideoPlay /></el-icon>
-              行为热力图分析
-            </el-button>
-            
-            <el-button
-              type="warning"
-              :loading="overallAnalysisLoading"
-              :disabled="!hasFile"
-              @click="startOverallAnalysis"
-            >
-              <el-icon><TrendCharts /></el-icon>
-              整体热力图分析
-            </el-button>
-            
-            <el-button
-              type="info"
-              @click="debugButtonState"
-              size="small"
-            >
-              调试按钮状态
-            </el-button>
-            
-            <el-button
-              v-if="analysisResult"
-              type="success"
-              @click="downloadResult"
-            >
-              <el-icon><Download /></el-icon>
-              下载结果
-            </el-button>
-          </div>
-        </div>
-        
-        <!-- 分析结果展示 -->
-        <div v-if="analysisResult" class="result-section card">
-          <h3 class="section-title">
-            <el-icon><PictureRounded /></el-icon>
-            分析结果
-          </h3>
-          
-          <div class="result-content">
-            <div class="result-summary">
-              <el-descriptions :column="3" border>
-                <el-descriptions-item label="分析文件">{{ analysisResult.filename }}</el-descriptions-item>
-                <el-descriptions-item label="行为配对数">{{ analysisResult.behavior_pairs_count }}</el-descriptions-item>
-                <el-descriptions-item label="神经元数量">{{ analysisResult.neuron_count }}</el-descriptions-item>
-                <el-descriptions-item label="起始行为">{{ analysisResult.start_behavior }}</el-descriptions-item>
-                <el-descriptions-item label="结束行为">{{ analysisResult.end_behavior }}</el-descriptions-item>
-                <el-descriptions-item label="分析状态">{{ analysisResult.status }}</el-descriptions-item>
-              </el-descriptions>
-            </div>
-            
-            <div v-if="analysisResult.heatmap_images" class="heatmap-gallery">
-              <h4>生成的热力图</h4>
-              <el-row :gutter="10">
-                <el-col
-                  v-for="(image, index) in analysisResult.heatmap_images"
-                  :key="index"
-                  :xs="24" :sm="12" :md="8" :lg="6"
-                >
-                  <div class="heatmap-item">
-                    <img 
-                      :src="image.url" 
-                      :alt="image.title" 
-                      class="heatmap-image" 
-                      @click="openHeatmapModal(image, index)"
+    <!-- 分析类型选择卡 -->
+    <el-tabs v-model="activeTab" type="card" class="analysis-tabs">
+      <!-- 行为序列热力图 -->
+      <el-tab-pane label="行为序列热力图" name="behavior">
+        <el-row :gutter="20">
+          <!-- 左侧参数面板 -->
+          <el-col :xs="24" :sm="24" :md="8" :lg="6">
+            <div class="params-panel card">
+              <h3 class="section-title">
+                <el-icon><Setting /></el-icon>
+                行为分析参数
+              </h3>
+              
+              <el-form :model="behaviorParams" label-width="120px" size="small">
+                <el-form-item label="起始行为">
+                  <el-select
+                    v-model="behaviorParams.start_behavior"
+                    placeholder="选择起始行为"
+                    style="width: 100%"
+                  >
+                    <el-option
+                      v-for="behavior in behaviorOptions"
+                      :key="behavior.value"
+                      :label="behavior.label"
+                      :value="behavior.value"
                     />
-                    <div class="heatmap-title">{{ image.title }}</div>
-                    <div class="heatmap-behavior-labels">
-                      <el-tag 
-                        v-if="!image.title.includes('平均')"
-                        type="primary" 
-                        size="small"
-                        class="behavior-tag"
-                      >
-                        {{ analysisResult.start_behavior }}
-                      </el-tag>
-                      <el-icon v-if="!image.title.includes('平均')" class="arrow-icon"><ArrowRight /></el-icon>
-                      <el-tag 
-                        v-if="!image.title.includes('平均')"
-                        type="success" 
-                        size="small"
-                        class="behavior-tag"
-                      >
-                        {{ analysisResult.end_behavior }}
-                      </el-tag>
-                      <el-tag 
-                        v-else
-                        type="warning" 
-                        size="small"
-                        class="behavior-tag"
-                      >
-                        平均热力图
-                      </el-tag>
-                    </div>
-                  </div>
-                </el-col>
-              </el-row>
+                  </el-select>
+                  <div class="param-help">分析从此行为开始</div>
+                </el-form-item>
+                
+                <el-form-item label="结束行为">
+                  <el-select
+                    v-model="behaviorParams.end_behavior"
+                    placeholder="选择结束行为"
+                    style="width: 100%"
+                  >
+                    <el-option
+                      v-for="behavior in behaviorOptions"
+                      :key="behavior.value"
+                      :label="behavior.label"
+                      :value="behavior.value"
+                    />
+                  </el-select>
+                  <div class="param-help">分析到此行为结束</div>
+                </el-form-item>
+                
+                <el-form-item label="行为前时间">
+                  <el-input-number
+                    v-model="behaviorParams.pre_behavior_time"
+                    :min="1"
+                    :max="60"
+                    :step="1"
+                    :precision="1"
+                    style="width: 100%"
+                  />
+                  <div class="param-help">单位：秒</div>
+                </el-form-item>
+                
+                <el-form-item label="采样频率">
+                  <el-input-number
+                    v-model="behaviorParams.sampling_rate"
+                    :min="0.1"
+                    :max="100"
+                    :step="0.1"
+                    :precision="1"
+                    style="width: 100%"
+                  />
+                  <div class="param-help">单位：Hz</div>
+                </el-form-item>
+                
+                <el-form-item label="最小持续时间">
+                  <el-input-number
+                    v-model="behaviorParams.min_behavior_duration"
+                    :min="0.1"
+                    :max="10"
+                    :step="0.1"
+                    :precision="1"
+                    style="width: 100%"
+                  />
+                  <div class="param-help">单位：秒</div>
+                </el-form-item>
+              </el-form>
             </div>
+          </el-col>
+          
+          <!-- 右侧内容区域 -->
+          <el-col :xs="24" :sm="24" :md="16" :lg="18">
+            <!-- 文件上传区域 -->
+            <div class="upload-section card">
+              <h3 class="section-title">
+                <el-icon><Upload /></el-icon>
+                数据文件上传
+              </h3>
+              
+              <el-upload
+                ref="behaviorUploadRef"
+                :on-change="handleBehaviorFileChange"
+                :on-remove="handleBehaviorFileRemove"
+                :before-upload="() => false"
+                accept=".xlsx,.xls"
+                drag
+                :limit="1"
+              >
+                <el-icon class="el-icon--upload"><upload-filled /></el-icon>
+                <div class="el-upload__text">
+                  将文件拖到此处，或<em>点击上传</em>
+                </div>
+                <template #tip>
+                  <div class="el-upload__tip">
+                    支持 Excel 文件格式，文件应包含钙信号数据和行为标签
+                  </div>
+                </template>
+              </el-upload>
+            </div>
+            
+            <!-- 分析控制区域 -->
+            <div class="analysis-section card">
+              <h3 class="section-title">
+                <el-icon><DataAnalysis /></el-icon>
+                开始分析
+              </h3>
+              
+              <div class="analysis-controls">
+                <el-button
+                  type="primary"
+                  :loading="behaviorAnalysisLoading"
+                  :disabled="!behaviorFileList.length || !behaviorParams.start_behavior || !behaviorParams.end_behavior"
+                  @click="startBehaviorAnalysis"
+                >
+                  <el-icon><VideoPlay /></el-icon>
+                  开始行为序列分析
+                </el-button>
+              </div>
+            </div>
+          </el-col>
+        </el-row>
+      </el-tab-pane>
+
+      <!-- EM排序热力图 -->
+      <el-tab-pane label="EM排序热力图" name="em-sort">
+        <el-row :gutter="20">
+          <!-- 左侧参数面板 -->
+          <el-col :xs="24" :sm="24" :md="8" :lg="6">
+            <div class="params-panel card">
+              <h3 class="section-title">
+                <el-icon><Setting /></el-icon>
+                EM排序参数
+              </h3>
+              
+              <el-form :model="emSortParams" label-width="120px" size="small">
+                <el-form-item label="时间范围开始">
+                  <el-input-number
+                    v-model="emSortParams.stamp_min"
+                    :min="0"
+                    :step="1"
+                    :precision="2"
+                    style="width: 100%"
+                    placeholder="留空表示从头开始"
+                  />
+                  <div class="param-help">开始时间戳</div>
+                </el-form-item>
+                
+                <el-form-item label="时间范围结束">
+                  <el-input-number
+                    v-model="emSortParams.stamp_max"
+                    :min="0"
+                    :step="1"
+                    :precision="2"
+                    style="width: 100%"
+                    placeholder="留空表示到结尾"
+                  />
+                  <div class="param-help">结束时间戳</div>
+                </el-form-item>
+                
+                <el-form-item label="排序方式">
+                  <el-select
+                    v-model="emSortParams.sort_method"
+                    style="width: 100%"
+                  >
+                    <el-option label="按峰值时间排序" value="peak" />
+                    <el-option label="按钙波时间排序" value="calcium_wave" />
+                    <el-option label="自定义排序" value="custom" />
+                  </el-select>
+                  <div class="param-help">神经元排序算法</div>
+                </el-form-item>
+                
+                <el-form-item 
+                  v-if="emSortParams.sort_method === 'custom'" 
+                  label="自定义顺序"
+                >
+                  <el-input
+                    v-model="emSortParams.custom_neuron_order"
+                    type="textarea"
+                    :rows="3"
+                    placeholder="输入神经元ID，用逗号分隔，如：n53,n40,n29"
+                  />
+                  <div class="param-help">神经元ID列表</div>
+                </el-form-item>
+                
+                <el-form-item label="采样频率">
+                  <el-input-number
+                    v-model="emSortParams.sampling_rate"
+                    :min="0.1"
+                    :max="100"
+                    :step="0.1"
+                    :precision="1"
+                    style="width: 100%"
+                  />
+                  <div class="param-help">单位：Hz</div>
+                </el-form-item>
+                
+                <el-form-item label="钙波阈值">
+                  <el-input-number
+                    v-model="emSortParams.calcium_wave_threshold"
+                    :min="0.1"
+                    :max="5.0"
+                    :step="0.1"
+                    :precision="1"
+                    style="width: 100%"
+                  />
+                  <div class="param-help">标准差的倍数</div>
+                </el-form-item>
+              </el-form>
+            </div>
+          </el-col>
+          
+          <!-- 右侧内容区域 -->
+          <el-col :xs="24" :sm="24" :md="16" :lg="18">
+            <!-- 文件上传区域 -->
+            <div class="upload-section card">
+              <h3 class="section-title">
+                <el-icon><Upload /></el-icon>
+                数据文件上传
+              </h3>
+              
+              <el-upload
+                ref="emSortUploadRef"
+                :on-change="handleEmSortFileChange"
+                :on-remove="handleEmSortFileRemove"
+                :before-upload="() => false"
+                accept=".xlsx,.xls"
+                drag
+                :limit="1"
+              >
+                <el-icon class="el-icon--upload"><upload-filled /></el-icon>
+                <div class="el-upload__text">
+                  将文件拖到此处，或<em>点击上传</em>
+                </div>
+                <template #tip>
+                  <div class="el-upload__tip">
+                    支持 Excel 文件格式，包含神经元钙信号数据
+                  </div>
+                </template>
+              </el-upload>
+            </div>
+            
+            <!-- 分析控制区域 -->
+            <div class="analysis-section card">
+              <h3 class="section-title">
+                <el-icon><DataAnalysis /></el-icon>
+                开始分析
+              </h3>
+              
+              <div class="analysis-controls">
+                <el-button
+                  type="primary"
+                  :loading="emSortAnalysisLoading"
+                  :disabled="!emSortFileList.length"
+                  @click="startEmSortAnalysis"
+                >
+                  <el-icon><TrendCharts /></el-icon>
+                  开始EM排序分析
+                </el-button>
+              </div>
+            </div>
+          </el-col>
+        </el-row>
+      </el-tab-pane>
+
+      <!-- 多天数据组合热力图 -->
+      <el-tab-pane label="多天数据组合热力图" name="multi-day">
+        <el-row :gutter="20">
+          <!-- 左侧参数面板 -->
+          <el-col :xs="24" :sm="24" :md="8" :lg="6">
+            <div class="params-panel card">
+              <h3 class="section-title">
+                <el-icon><Setting /></el-icon>
+                多天分析参数
+              </h3>
+              
+              <el-form :model="multiDayParams" label-width="120px" size="small">
+                <el-form-item label="排序方式">
+                  <el-select
+                    v-model="multiDayParams.sort_method"
+                    style="width: 100%"
+                  >
+                    <el-option label="按峰值时间排序" value="peak" />
+                    <el-option label="按钙波时间排序" value="calcium_wave" />
+                  </el-select>
+                  <div class="param-help">神经元排序算法</div>
+                </el-form-item>
+                
+                <el-form-item label="钙波阈值">
+                  <el-input-number
+                    v-model="multiDayParams.calcium_wave_threshold"
+                    :min="0.1"
+                    :max="5.0"
+                    :step="0.1"
+                    :precision="1"
+                    style="width: 100%"
+                  />
+                  <div class="param-help">标准差的倍数</div>
+                </el-form-item>
+                
+                <el-form-item label="生成组合图">
+                  <el-switch
+                    v-model="multiDayParams.create_combination"
+                    active-text="是"
+                    inactive-text="否"
+                  />
+                  <div class="param-help">生成多天对比热力图</div>
+                </el-form-item>
+                
+                <el-form-item label="生成单独图">
+                  <el-switch
+                    v-model="multiDayParams.create_individual"
+                    active-text="是"
+                    inactive-text="否"
+                  />
+                  <div class="param-help">生成每天单独热力图</div>
+                </el-form-item>
+              </el-form>
+            </div>
+          </el-col>
+          
+          <!-- 右侧内容区域 -->
+          <el-col :xs="24" :sm="24" :md="16" :lg="18">
+            <!-- 文件上传区域 -->
+            <div class="upload-section card">
+              <h3 class="section-title">
+                <el-icon><Upload /></el-icon>
+                多天数据文件上传
+              </h3>
+              
+              <el-upload
+                ref="multiDayUploadRef"
+                :on-change="handleMultiDayFileChange"
+                :on-remove="handleMultiDayFileRemove"
+                :before-upload="() => false"
+                accept=".xlsx,.xls"
+                drag
+                multiple
+                :limit="10"
+              >
+                <el-icon class="el-icon--upload"><upload-filled /></el-icon>
+                <div class="el-upload__text">
+                  将多个文件拖到此处，或<em>点击上传</em>
+                </div>
+                <template #tip>
+                  <div class="el-upload__tip">
+                    支持同时上传多个Excel文件，每个文件代表一天的数据
+                  </div>
+                </template>
+              </el-upload>
+              
+              <!-- 文件标签配置 -->
+              <div v-if="multiDayFileList.length > 0" class="file-labels">
+                <h4>文件标签配置</h4>
+                <el-row :gutter="10">
+                  <el-col 
+                    v-for="(file, index) in multiDayFileList" 
+                    :key="index"
+                    :xs="24" :sm="12" :md="8"
+                  >
+                    <div class="file-label-item">
+                      <div class="file-name">{{ file.name }}</div>
+                      <el-input
+                        v-model="multiDayLabels[index]"
+                        placeholder="输入天数标签 (如: day0)"
+                        size="small"
+                      />
+                    </div>
+                  </el-col>
+                </el-row>
+              </div>
+            </div>
+            
+            <!-- 分析控制区域 -->
+            <div class="analysis-section card">
+              <h3 class="section-title">
+                <el-icon><DataAnalysis /></el-icon>
+                开始分析
+              </h3>
+              
+              <div class="analysis-controls">
+                <el-button
+                  type="primary"
+                  :loading="multiDayAnalysisLoading"
+                  :disabled="!multiDayFileList.length || multiDayLabels.some(label => !label)"
+                  @click="startMultiDayAnalysis"
+                >
+                  <el-icon><Calendar /></el-icon>
+                  开始多天对比分析
+                </el-button>
+              </div>
+            </div>
+          </el-col>
+        </el-row>
+      </el-tab-pane>
+    </el-tabs>
+
+    <!-- 结果展示区域 -->
+    <div v-if="currentResult" class="result-section card">
+      <h3 class="section-title">
+        <el-icon><PictureRounded /></el-icon>
+        分析结果
+      </h3>
+      
+      <!-- 行为序列热力图结果 -->
+      <div v-if="activeTab === 'behavior' && behaviorAnalysisResult" class="behavior-result">
+        <div class="result-summary">
+          <el-descriptions :column="3" border>
+            <el-descriptions-item label="分析文件">{{ behaviorAnalysisResult.filename }}</el-descriptions-item>
+            <el-descriptions-item label="行为配对数">{{ behaviorAnalysisResult.behavior_pairs_count }}</el-descriptions-item>
+            <el-descriptions-item label="神经元数量">{{ behaviorAnalysisResult.neuron_count }}</el-descriptions-item>
+            <el-descriptions-item label="起始行为">{{ behaviorAnalysisResult.start_behavior }}</el-descriptions-item>
+            <el-descriptions-item label="结束行为">{{ behaviorAnalysisResult.end_behavior }}</el-descriptions-item>
+            <el-descriptions-item label="分析状态">{{ behaviorAnalysisResult.status }}</el-descriptions-item>
+          </el-descriptions>
+        </div>
+        
+        <div v-if="behaviorAnalysisResult.heatmap_images" class="heatmap-gallery">
+          <h4>生成的热力图</h4>
+          <el-row :gutter="10">
+            <el-col
+              v-for="(image, index) in behaviorAnalysisResult.heatmap_images"
+              :key="index"
+              :xs="24" :sm="12" :md="8" :lg="6"
+            >
+              <div class="heatmap-item">
+                <img 
+                  :src="image.url" 
+                  :alt="image.title" 
+                  class="heatmap-image" 
+                  @click="openHeatmapModal(image, index)"
+                />
+                <div class="heatmap-title">{{ image.title }}</div>
+              </div>
+            </el-col>
+          </el-row>
+        </div>
+      </div>
+      
+      <!-- EM排序热力图结果 -->
+      <div v-if="activeTab === 'em-sort' && emSortAnalysisResult" class="em-sort-result">
+        <div class="result-summary">
+          <el-descriptions :column="3" border>
+            <el-descriptions-item label="分析文件">{{ emSortAnalysisResult.filename }}</el-descriptions-item>
+            <el-descriptions-item label="排序方式">{{ emSortAnalysisResult.analysis_info.sort_method }}</el-descriptions-item>
+            <el-descriptions-item label="神经元数量">{{ emSortAnalysisResult.analysis_info.total_neurons }}</el-descriptions-item>
+            <el-descriptions-item label="时间范围">
+              {{ emSortAnalysisResult.analysis_info.time_range.start_seconds.toFixed(2) }}s - 
+              {{ emSortAnalysisResult.analysis_info.time_range.end_seconds.toFixed(2) }}s
+            </el-descriptions-item>
+            <el-descriptions-item label="持续时间">{{ emSortAnalysisResult.analysis_info.time_range.duration_seconds.toFixed(2) }}秒</el-descriptions-item>
+            <el-descriptions-item label="行为类型数">{{ emSortAnalysisResult.analysis_info.behavior_types.length }}</el-descriptions-item>
+          </el-descriptions>
+        </div>
+        
+        <div class="single-heatmap">
+          <h4>EM排序热力图</h4>
+          <div class="heatmap-container">
+            <img 
+              :src="emSortAnalysisResult.heatmap_image" 
+              alt="EM排序热力图" 
+              class="single-heatmap-image" 
+              @click="openSingleHeatmapModal(emSortAnalysisResult.heatmap_image, 'EM排序热力图')"
+            />
+          </div>
+        </div>
+      </div>
+      
+      <!-- 多天数据组合热力图结果 -->
+      <div v-if="activeTab === 'multi-day' && multiDayAnalysisResult" class="multi-day-result">
+        <div class="result-summary">
+          <el-descriptions :column="3" border>
+            <el-descriptions-item label="处理天数">{{ multiDayAnalysisResult.analysis_info.total_days }}</el-descriptions-item>
+            <el-descriptions-item label="排序方式">{{ multiDayAnalysisResult.analysis_info.sort_method }}</el-descriptions-item>
+            <el-descriptions-item label="组合图生成">{{ multiDayAnalysisResult.analysis_info.combination_created ? '是' : '否' }}</el-descriptions-item>
+            <el-descriptions-item label="单独图生成">{{ multiDayAnalysisResult.analysis_info.individual_created ? '是' : '否' }}</el-descriptions-item>
+            <el-descriptions-item label="天数标签">{{ multiDayAnalysisResult.day_labels.join(', ') }}</el-descriptions-item>
+            <el-descriptions-item label="分析状态">成功</el-descriptions-item>
+          </el-descriptions>
+        </div>
+        
+        <!-- 组合热力图 -->
+        <div v-if="multiDayAnalysisResult.combination_heatmap" class="combination-heatmap">
+          <h4>多天组合热力图</h4>
+          <div class="heatmap-container">
+            <img 
+              :src="multiDayAnalysisResult.combination_heatmap.image" 
+              alt="多天组合热力图" 
+              class="combination-heatmap-image" 
+              @click="openSingleHeatmapModal(multiDayAnalysisResult.combination_heatmap.image, '多天组合热力图')"
+            />
           </div>
         </div>
         
-        <!-- 整体热力图结果展示 -->
-        <div v-if="overallAnalysisResult" class="result-section card">
-          <h3 class="section-title">
-            <el-icon><TrendCharts /></el-icon>
-            整体热力图分析结果
-          </h3>
-          
-          <div class="result-content">
-            <div class="result-summary">
-               <el-descriptions :column="3" border>
-                 <el-descriptions-item label="分析文件">{{ overallAnalysisResult.filename }}</el-descriptions-item>
-                 <el-descriptions-item label="神经元数量">{{ overallAnalysisResult.analysis_info?.neuron_count || 0 }}</el-descriptions-item>
-                 <el-descriptions-item label="排序方式">{{ overallAnalysisResult.config?.sort_method || overallAnalysisResult.analysis_info?.sort_method }}</el-descriptions-item>
-                 <el-descriptions-item label="钙波阈值">{{ overallAnalysisResult.config?.calcium_wave_threshold }}</el-descriptions-item>
-                 <el-descriptions-item label="时间范围">{{ formatTimeRange(overallAnalysisResult.analysis_info?.time_range) }}</el-descriptions-item>
-                 <el-descriptions-item label="分析状态">{{ overallAnalysisResult.success ? '成功' : '失败' }}</el-descriptions-item>
-               </el-descriptions>
-             </div>
-            
-            <div v-if="overallAnalysisResult.heatmap_image" class="overall-heatmap-display">
-              <h4>整体热力图</h4>
-              <div class="overall-heatmap-container">
+        <!-- 单独热力图 -->
+        <div v-if="multiDayAnalysisResult.individual_heatmaps && multiDayAnalysisResult.individual_heatmaps.length > 0" class="individual-heatmaps">
+          <h4>单独热力图</h4>
+          <el-row :gutter="10">
+            <el-col
+              v-for="(heatmap, index) in multiDayAnalysisResult.individual_heatmaps"
+              :key="index"
+              :xs="24" :sm="12" :md="8"
+            >
+              <div class="individual-heatmap-item">
                 <img 
-                  :src="overallAnalysisResult.heatmap_image" 
-                  alt="整体热力图" 
-                  class="overall-heatmap-image" 
-                  @click="openOverallHeatmapModal"
+                  :src="heatmap.image" 
+                  :alt="heatmap.day + '热力图'" 
+                  class="individual-heatmap-image" 
+                  @click="openSingleHeatmapModal(heatmap.image, heatmap.day + '热力图')"
                 />
-                <div class="overall-heatmap-info">
-                  <el-tag type="info" size="small">点击查看大图</el-tag>
-                </div>
+                <div class="heatmap-title">{{ heatmap.day.toUpperCase() }}</div>
               </div>
-            </div>
-          </div>
+            </el-col>
+          </el-row>
         </div>
-      </el-col>
-    </el-row>
+      </div>
+    </div>
 
     <!-- 热力图放大模态框 -->
     <el-dialog
       v-model="heatmapModalVisible"
       :title="selectedHeatmap?.title || '热力图详情'"
       width="80%"
-      center
-      :before-close="closeHeatmapModal"
+      class="heatmap-modal"
     >
       <div class="modal-heatmap-container">
         <img 
-          v-if="selectedHeatmap"
+          v-if="selectedHeatmap?.url"
           :src="selectedHeatmap.url" 
-          :alt="selectedHeatmap.title" 
+          :alt="selectedHeatmap.title"
           class="modal-heatmap-image"
         />
-        <div class="modal-behavior-info">
-          <el-descriptions :column="2" border>
-            <el-descriptions-item label="热力图类型">
-              {{ selectedHeatmap?.title || '' }}
-            </el-descriptions-item>
-            <el-descriptions-item label="行为配对" v-if="!selectedHeatmap?.title.includes('平均')">
-              <el-tag type="primary" size="small">{{ analysisResult?.start_behavior }}</el-tag>
-              <el-icon class="mx-2"><ArrowRight /></el-icon>
-              <el-tag type="success" size="small">{{ analysisResult?.end_behavior }}</el-tag>
-            </el-descriptions-item>
-            <el-descriptions-item label="神经元数量">
-              {{ analysisResult?.neuron_count || 0 }}
-            </el-descriptions-item>
-            <el-descriptions-item label="分析参数">
-              前置时间: {{ params.pre_behavior_time }}s, 最小持续: {{ params.min_behavior_duration }}s
-            </el-descriptions-item>
-          </el-descriptions>
-        </div>
-      </div>
-    </el-dialog>
-    
-    <!-- 整体热力图放大模态框 -->
-    <el-dialog
-      v-model="overallHeatmapModalVisible"
-      title="整体热力图详情"
-      width="90%"
-      center
-      :before-close="closeOverallHeatmapModal"
-    >
-      <div class="modal-heatmap-container">
         <img 
-          v-if="overallAnalysisResult?.heatmap_image"
-          :src="overallAnalysisResult.heatmap_image" 
-          alt="整体热力图" 
+          v-else-if="selectedHeatmapUrl"
+          :src="selectedHeatmapUrl" 
+          :alt="selectedHeatmapTitle"
           class="modal-heatmap-image"
         />
-        <div class="modal-behavior-info">
-          <el-descriptions :column="2" border>
-             <el-descriptions-item label="热力图类型">
-               整体热力图
-             </el-descriptions-item>
-             <el-descriptions-item label="排序方式">
-               {{ overallAnalysisResult?.config?.sort_method || overallAnalysisResult?.analysis_info?.sort_method || '' }}
-             </el-descriptions-item>
-             <el-descriptions-item label="神经元数量">
-               {{ overallAnalysisResult?.analysis_info?.neuron_count || 0 }}
-             </el-descriptions-item>
-             <el-descriptions-item label="钙波阈值">
-               {{ overallAnalysisResult?.config?.calcium_wave_threshold || 0 }}
-             </el-descriptions-item>
-             <el-descriptions-item label="时间范围">
-               {{ formatTimeRange(overallAnalysisResult?.analysis_info?.time_range) }}
-             </el-descriptions-item>
-             <el-descriptions-item label="分析参数">
-               最小突出度: {{ overallAnalysisResult?.config?.min_prominence || overallParams.min_prominence }}, 最小上升率: {{ overallAnalysisResult?.config?.min_rise_rate || overallParams.min_rise_rate }}
-             </el-descriptions-item>
-           </el-descriptions>
-        </div>
       </div>
     </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, watch, computed } from 'vue'
+import { ref, computed, reactive } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   TrendCharts,
   Setting,
   Upload,
   UploadFilled,
-  View,
   DataAnalysis,
   VideoPlay,
-  Download,
   PictureRounded,
-  ArrowRight
+  Calendar
 } from '@element-plus/icons-vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
 
 // 响应式数据
-const uploadRef = ref()
-const fileList = ref([])
-const uploadedFile = ref(null) // 独立的文件状态
-const hasFile = computed(() => uploadedFile.value !== null)
-const analysisLoading = ref(false)
-const behaviorEvents = ref([])
-const analysisResult = ref(null)
+const activeTab = ref('behavior')
 
-// 整体热力图相关
-const overallAnalysisLoading = ref(false)
-const overallAnalysisResult = ref(null)
-
-// 热力图模态框相关
-const heatmapModalVisible = ref(false)
-const selectedHeatmap = ref(null)
-const selectedHeatmapIndex = ref(-1)
-
-// 整体热力图模态框相关
-const overallHeatmapModalVisible = ref(false)
-
-// 行为选项（这些可以从上传的文件中动态获取）
+// 行为选项
 const behaviorOptions = [
-  { label: 'Explore', value: 'Explore' },
-  { label: 'Water', value: 'Water' },
-  { label: 'Smell-feed', value: 'Smell-feed' },
-  { label: 'Eat-feed', value: 'Eat-feed' },
-  { label: 'Get-feed', value: 'Get-feed' },
-  { label: 'Groom', value: 'Groom' },
-  { label: 'Smell-Get-seeds', value: 'Smell-Get-seeds' },
-  { label: 'Get-seeds', value: 'Get-seeds' },
-  { label: 'Crack-seeds-shells', value: 'Crack-seeds-shells' },
-  { label: 'Eat-seed-kernels', value: 'Eat-seed-kernels' },
-  { label: 'Smell-water', value: 'Smell-water' },
-  { label: 'Find-seeds', value: 'Find-seeds' },
-  { label: 'Grab-seeds', value: 'Grab-seeds' },
-  { label: 'Explore-search-seeds', value: 'Explore-search-seeds' }
+  { label: '破开种子壳', value: 'Crack-seeds-shells' },
+  { label: '吃饲料', value: 'Eat-feed' },
+  { label: '吃种子仁', value: 'Eat-seed-kernels' },
+  { label: '探索', value: 'Explore' },
+  { label: '搜索种子', value: 'Explore-search-seeds' },
+  { label: '发现种子', value: 'Find-seeds' },
+  { label: '获取饲料', value: 'Get-feed' },
+  { label: '获取种子', value: 'Get-seeds' },
+  { label: '抓取种子', value: 'Grab-seeds' },
+  { label: '整理', value: 'Groom' },
+  { label: '嗅饲料', value: 'Smell-feed' },
+  { label: '嗅种子', value: 'Smell-Get-seeds' },
+  { label: '储存种子', value: 'Store-seeds' },
+  { label: '饮水', value: 'Water' }
 ]
 
-// 参数配置
-const params = reactive({
-  start_behavior: 'Crack-seeds-shells',
+// 行为序列热力图参数
+const behaviorParams = reactive({
+  start_behavior: 'Eat-seed-kernels',
   end_behavior: 'Eat-seed-kernels',
   pre_behavior_time: 10.0,
   sampling_rate: 4.8,
-  min_behavior_duration: 1.0,
-  sorting_method: 'first'
+  min_behavior_duration: 1.0
 })
 
-// 整体热力图参数配置
-const overallParams = reactive({
+// EM排序热力图参数
+const emSortParams = reactive({
   stamp_min: null,
   stamp_max: null,
   sort_method: 'peak',
+  custom_neuron_order: '',
+  sampling_rate: 4.8,
   calcium_wave_threshold: 1.5,
   min_prominence: 1.0,
   min_rise_rate: 0.1,
   max_fall_rate: 0.05
 })
 
-// 监听参数变化
-watch(params, (newParams) => {
-  console.log('参数变化:', newParams)
-  console.log('按钮禁用条件检查:', {
-    hasFile: hasFile.value,
-    uploadedFile: uploadedFile.value,
-    startBehavior: newParams.start_behavior,
-    endBehavior: newParams.end_behavior,
-    shouldDisable: !hasFile.value || !newParams.start_behavior || !newParams.end_behavior
-  })
-}, { deep: true })
-
-// 页面加载时检查初始状态
-onMounted(() => {
-  console.log('页面加载完成，初始状态检查:', {
-    hasFile: hasFile.value,
-    uploadedFile: uploadedFile.value,
-    startBehavior: params.start_behavior,
-    endBehavior: params.end_behavior,
-    behaviorOptions: behaviorOptions.length,
-    shouldDisable: !hasFile.value || !params.start_behavior || !params.end_behavior
-  })
+// 多天数据组合热力图参数
+const multiDayParams = reactive({
+  sort_method: 'peak',
+  calcium_wave_threshold: 1.5,
+  min_prominence: 1.0,
+  min_rise_rate: 0.1,
+  max_fall_rate: 0.05,
+  create_combination: true,
+  create_individual: true
 })
 
-// 文件上传处理
-const handleFileChange = async (file, files) => {
-  console.log('handleFileChange被调用:', { file, files, fileStatus: file?.status })
-  console.log('当前uploadedFile:', uploadedFile.value)
-  
-  // 重置状态
-  analysisResult.value = null
-  behaviorEvents.value = []
-  
-  if (file) {
-    console.log('文件状态:', file.status)
-    console.log('设置uploadedFile为:', file)
-    // 使用独立的文件状态，不依赖status
-    uploadedFile.value = file
-    fileList.value = [file] // 保持兼容性
-    console.log('设置后uploadedFile:', uploadedFile.value)
-    console.log('hasFile状态:', hasFile.value)
-    
-    // 检查按钮状态
-    console.log('文件上传后按钮状态检查:', {
-      hasFile: hasFile.value,
-      startBehavior: params.start_behavior,
-      endBehavior: params.end_behavior,
-      shouldDisable: !hasFile.value || !params.start_behavior || !params.end_behavior
-    })
-    
-    // 检测行为事件
-    console.log('开始检测行为事件，hasFile:', hasFile.value)
-    await detectBehaviorEvents(file)
-    console.log('检测行为事件完成，hasFile:', hasFile.value)
-  } else {
-    console.log('清空文件状态，原因: 无有效文件')
-    uploadedFile.value = null
-    fileList.value = []
+// 文件列表
+const behaviorFileList = ref([])
+const emSortFileList = ref([])
+const multiDayFileList = ref([])
+const multiDayLabels = ref([])
+
+// 加载状态
+const behaviorAnalysisLoading = ref(false)
+const emSortAnalysisLoading = ref(false)
+const multiDayAnalysisLoading = ref(false)
+
+// 分析结果
+const behaviorAnalysisResult = ref(null)
+const emSortAnalysisResult = ref(null)
+const multiDayAnalysisResult = ref(null)
+
+// 模态框相关
+const heatmapModalVisible = ref(false)
+const selectedHeatmap = ref(null)
+const selectedHeatmapUrl = ref('')
+const selectedHeatmapTitle = ref('')
+
+// 计算属性
+const currentResult = computed(() => {
+  switch (activeTab.value) {
+    case 'behavior':
+      return behaviorAnalysisResult.value
+    case 'em-sort':
+      return emSortAnalysisResult.value
+    case 'multi-day':
+      return multiDayAnalysisResult.value
+    default:
+      return null
   }
+})
+
+// 文件处理函数
+const handleBehaviorFileChange = (file, fileList) => {
+  behaviorFileList.value = fileList
 }
 
-// 文件移除处理
-const handleFileRemove = (file, files) => {
-  console.log('handleFileRemove被调用:', { file, files })
-  console.log('files数组详情:', { length: files.length, isArray: Array.isArray(files), content: files })
-  console.log('调用堆栈:', new Error().stack)
-  
-  // 完全禁用文件移除逻辑，避免意外清空状态
-  console.log('禁用文件移除逻辑，保持所有状态不变')
-  // 不执行任何清空操作
-  
-  console.log('文件移除后hasFile状态:', hasFile.value)
+const handleBehaviorFileRemove = (file, fileList) => {
+  behaviorFileList.value = fileList
 }
 
-// 检测行为事件
-const detectBehaviorEvents = async (file) => {
-  try {
-    console.log('开始检测行为事件，文件:', file.name)
-    console.log('文件对象:', file)
-    
-    // 创建FormData对象
-    const formData = new FormData()
-    // 使用file.raw或file本身，取决于Element Plus的文件对象结构
-    const fileToUpload = file.raw || file
-    formData.append('file', fileToUpload)
-    
-    console.log('发送行为事件检测请求到后端...')
-    
-    // 调用后端API检测行为事件
-    const response = await fetch('http://localhost:8000/api/behavior/detect', {
-      method: 'POST',
-      body: formData
-    })
-    
-    console.log('行为事件检测API响应状态:', response.status)
-    
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.error('行为事件检测API错误:', errorText)
-      throw new Error(`API请求失败: ${response.status} - ${errorText}`)
+const handleEmSortFileChange = (file, fileList) => {
+  emSortFileList.value = fileList
+}
+
+const handleEmSortFileRemove = (file, fileList) => {
+  emSortFileList.value = fileList
+}
+
+const handleMultiDayFileChange = (file, fileList) => {
+  multiDayFileList.value = fileList
+  // 自动生成标签
+  multiDayLabels.value = fileList.map((f, index) => {
+    // 尝试从文件名中提取天数信息
+    const dayMatch = f.name.match(/day\s*(\d+)/i)
+    if (dayMatch) {
+      return `day${dayMatch[1]}`
     }
-    
-    const result = await response.json()
-    console.log('行为事件检测结果:', result)
-    
-    behaviorEvents.value = result.behavior_events || []
-    
-    ElMessage.success(`检测到 ${behaviorEvents.value.length} 个行为事件配对`)
-  } catch (error) {
-    console.error('行为事件检测失败:', error)
-    ElMessage.error('行为事件检测失败: ' + (error.message || '未知错误'))
-  }
+    return `day${index}`
+  })
 }
 
-// 开始分析
-const startAnalysis = async () => {
-  if (fileList.value.length === 0) {
+const handleMultiDayFileRemove = (file, fileList) => {
+  multiDayFileList.value = fileList
+  multiDayLabels.value = multiDayLabels.value.slice(0, fileList.length)
+}
+
+// 分析函数
+const startBehaviorAnalysis = async () => {
+  if (behaviorFileList.value.length === 0) {
     ElMessage.warning('请先上传数据文件')
     return
   }
   
-  if (!params.start_behavior || !params.end_behavior) {
+  if (!behaviorParams.start_behavior || !behaviorParams.end_behavior) {
     ElMessage.warning('请选择起始和结束行为')
     return
   }
   
-  analysisLoading.value = true
+  behaviorAnalysisLoading.value = true
   
   try {
-      // 创建FormData对象
-      const formData = new FormData()
-      formData.append('file', fileList.value[0].raw)
-      formData.append('start_behavior', params.start_behavior)
-      formData.append('end_behavior', params.end_behavior)
-      formData.append('pre_behavior_time', params.pre_behavior_time.toString())
-      formData.append('min_duration', params.min_behavior_duration.toString())
-      formData.append('sampling_rate', params.sampling_rate.toString())
-      
-      console.log('发送请求参数:', {
-        file: fileList.value[0].raw.name,
-        start_behavior: params.start_behavior,
-        end_behavior: params.end_behavior,
-        pre_behavior_time: params.pre_behavior_time,
-        min_duration: params.min_behavior_duration,
-        sampling_rate: params.sampling_rate
-      })
-      
-      // 调用后端API
-       const response = await fetch('http://localhost:8000/api/heatmap/analyze', {
-          method: 'POST',
-          body: formData
-        })
-      
-      console.log('API响应状态:', response.status)
-      
-      if (!response.ok) {
-        const errorData = await response.json()
-        console.error('API错误响应:', errorData)
-        throw new Error(errorData.detail || '分析失败')
-      }
-      
-      const result = await response.json()
-      console.log('API成功响应:', result)
-      console.log('热力图数据:', result.heatmap_images)
-      console.log('热力图数量:', result.heatmap_images ? result.heatmap_images.length : 0)
-      
-      analysisResult.value = result
-      
-      if (result.heatmap_images && result.heatmap_images.length > 0) {
-        ElMessage.success(`热力图分析完成！生成了 ${result.heatmap_images.length} 张热力图`)
-      } else {
-        ElMessage.warning('热力图分析完成，但没有生成图像')
-        console.warn('没有生成热力图图像，可能的原因：', {
-          hasImages: !!result.heatmap_images,
-          imageCount: result.heatmap_images ? result.heatmap_images.length : 0,
-          behaviorPairs: result.behavior_pairs_count
-        })
-      }
-  } catch (error) {
-    console.error('分析失败:', error)
-    ElMessage.error('分析失败: ' + (error.message || '未知错误'))
-  } finally {
-    analysisLoading.value = false
-  }
-}
-
-// 开始整体热力图分析
-const startOverallAnalysis = async () => {
-  if (fileList.value.length === 0) {
-    ElMessage.warning('请先上传数据文件')
-    return
-  }
-  
-  overallAnalysisLoading.value = true
-  
-  try {
-    // 创建FormData对象
     const formData = new FormData()
-    formData.append('file', fileList.value[0].raw)
+    formData.append('file', behaviorFileList.value[0].raw)
+    formData.append('start_behavior', behaviorParams.start_behavior)
+    formData.append('end_behavior', behaviorParams.end_behavior)
+    formData.append('pre_behavior_time', behaviorParams.pre_behavior_time)
+    formData.append('min_duration', behaviorParams.min_behavior_duration)
+    formData.append('sampling_rate', behaviorParams.sampling_rate)
     
-    // 添加整体热力图参数
-    if (overallParams.stamp_min !== null) {
-      formData.append('stamp_min', overallParams.stamp_min.toString())
-    }
-    if (overallParams.stamp_max !== null) {
-      formData.append('stamp_max', overallParams.stamp_max.toString())
-    }
-    formData.append('sort_method', overallParams.sort_method)
-    formData.append('calcium_wave_threshold', overallParams.calcium_wave_threshold.toString())
-    formData.append('min_prominence', overallParams.min_prominence.toString())
-    formData.append('min_rise_rate', overallParams.min_rise_rate.toString())
-    formData.append('max_fall_rate', overallParams.max_fall_rate.toString())
-    
-    console.log('发送整体热力图分析请求参数:', {
-      file: fileList.value[0].raw.name,
-      stamp_min: overallParams.stamp_min,
-      stamp_max: overallParams.stamp_max,
-      sort_method: overallParams.sort_method,
-      calcium_wave_threshold: overallParams.calcium_wave_threshold,
-      min_prominence: overallParams.min_prominence,
-      min_rise_rate: overallParams.min_rise_rate,
-      max_fall_rate: overallParams.max_fall_rate
-    })
-    
-    // 调用后端API
-    const response = await fetch('http://localhost:8000/api/heatmap/overall', {
+    const response = await fetch('http://localhost:8000/api/heatmap/analyze', {
       method: 'POST',
       body: formData
     })
     
-    console.log('整体热力图API响应状态:', response.status)
-    
     if (!response.ok) {
       const errorData = await response.json()
-      console.error('整体热力图API错误响应:', errorData)
-      throw new Error(errorData.detail || '整体热力图分析失败')
+      throw new Error(errorData.detail || '分析失败')
     }
     
     const result = await response.json()
-    console.log('整体热力图API成功响应:', result)
+    behaviorAnalysisResult.value = result
     
-    overallAnalysisResult.value = result
-    
-    if (result.heatmap_image) {
-      ElMessage.success('整体热力图分析完成！')
+    if (result.heatmap_images && result.heatmap_images.length > 0) {
+      ElMessage.success(`行为序列热力图分析完成！生成了 ${result.heatmap_images.length} 张热力图`)
     } else {
-      ElMessage.warning('整体热力图分析完成，但没有生成图像')
+      ElMessage.warning('分析完成，但没有生成图像')
     }
+    
   } catch (error) {
-    console.error('整体热力图分析失败:', error)
-    ElMessage.error('整体热力图分析失败: ' + (error.message || '未知错误'))
+    console.error('行为序列分析失败:', error)
+    ElMessage.error('行为序列分析失败: ' + (error.message || '未知错误'))
   } finally {
-    overallAnalysisLoading.value = false
+    behaviorAnalysisLoading.value = false
   }
 }
 
-// 调试按钮状态
-const debugButtonState = () => {
-  console.log('=== 调试按钮状态 ===')
-  console.log('uploadedFile:', uploadedFile.value)
-  console.log('hasFile:', hasFile.value)
-  console.log('fileList兼容性:', fileList.value)
-  console.log('参数状态:', params)
-  console.log('按钮禁用条件:', {
-    noFile: !hasFile.value,
-    noStartBehavior: !params.start_behavior,
-    noEndBehavior: !params.end_behavior,
-    shouldDisable: !hasFile.value || !params.start_behavior || !params.end_behavior
-  })
-  
-  ElMessage.info(`文件状态: ${hasFile.value ? '已上传' : '未上传'}, 开始行为: ${params.start_behavior}, 结束行为: ${params.end_behavior}`)
-}
-
-// 下载结果
-const downloadResult = () => {
-  if (!analysisResult.value) {
-    ElMessage.warning('没有可下载的结果')
+const startEmSortAnalysis = async () => {
+  if (emSortFileList.value.length === 0) {
+    ElMessage.warning('请先上传数据文件')
     return
   }
   
-  // 这里应该调用后端API下载结果文件
-  ElMessage.info('下载功能开发中...')
+  emSortAnalysisLoading.value = true
+  
+  try {
+    const formData = new FormData()
+    formData.append('file', emSortFileList.value[0].raw)
+    formData.append('stamp_min', emSortParams.stamp_min || '')
+    formData.append('stamp_max', emSortParams.stamp_max || '')
+    formData.append('sort_method', emSortParams.sort_method)
+    formData.append('custom_neuron_order', emSortParams.custom_neuron_order || '')
+    formData.append('sampling_rate', emSortParams.sampling_rate)
+    formData.append('calcium_wave_threshold', emSortParams.calcium_wave_threshold)
+    formData.append('min_prominence', emSortParams.min_prominence)
+    formData.append('min_rise_rate', emSortParams.min_rise_rate)
+    formData.append('max_fall_rate', emSortParams.max_fall_rate)
+    
+    const response = await fetch('http://localhost:8000/api/heatmap/em-sort', {
+      method: 'POST',
+      body: formData
+    })
+    
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.detail || 'EM排序分析失败')
+    }
+    
+    const result = await response.json()
+    emSortAnalysisResult.value = result
+    
+    ElMessage.success('EM排序热力图分析完成！')
+    
+  } catch (error) {
+    console.error('EM排序分析失败:', error)
+    ElMessage.error('EM排序分析失败: ' + (error.message || '未知错误'))
+  } finally {
+    emSortAnalysisLoading.value = false
+  }
 }
 
-// 打开热力图模态框
+const startMultiDayAnalysis = async () => {
+  if (multiDayFileList.value.length === 0) {
+    ElMessage.warning('请先上传多天数据文件')
+    return
+  }
+  
+  if (multiDayLabels.value.some(label => !label)) {
+    ElMessage.warning('请为所有文件设置天数标签')
+    return
+  }
+  
+  multiDayAnalysisLoading.value = true
+  
+  try {
+    const formData = new FormData()
+    
+    // 添加文件
+    multiDayFileList.value.forEach(file => {
+      formData.append('files', file.raw)
+    })
+    
+    // 添加参数
+    formData.append('day_labels', multiDayLabels.value.join(','))
+    formData.append('sort_method', multiDayParams.sort_method)
+    formData.append('calcium_wave_threshold', multiDayParams.calcium_wave_threshold)
+    formData.append('min_prominence', multiDayParams.min_prominence)
+    formData.append('min_rise_rate', multiDayParams.min_rise_rate)
+    formData.append('max_fall_rate', multiDayParams.max_fall_rate)
+    formData.append('create_combination', multiDayParams.create_combination)
+    formData.append('create_individual', multiDayParams.create_individual)
+    
+    const response = await fetch('http://localhost:8000/api/heatmap/multi-day', {
+      method: 'POST',
+      body: formData
+    })
+    
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.detail || '多天分析失败')
+    }
+    
+    const result = await response.json()
+    multiDayAnalysisResult.value = result
+    
+    ElMessage.success(`多天数据热力图分析完成！处理了 ${result.day_labels.length} 天的数据`)
+    
+  } catch (error) {
+    console.error('多天分析失败:', error)
+    ElMessage.error('多天分析失败: ' + (error.message || '未知错误'))
+  } finally {
+    multiDayAnalysisLoading.value = false
+  }
+}
+
+// 模态框函数
 const openHeatmapModal = (heatmap, index) => {
   selectedHeatmap.value = heatmap
-  selectedHeatmapIndex.value = index
+  selectedHeatmapUrl.value = ''
+  selectedHeatmapTitle.value = ''
   heatmapModalVisible.value = true
 }
 
-// 关闭热力图模态框
-const closeHeatmapModal = () => {
-  heatmapModalVisible.value = false
+const openSingleHeatmapModal = (imageUrl, title) => {
   selectedHeatmap.value = null
-  selectedHeatmapIndex.value = -1
-}
-
-// 打开整体热力图模态框
-const openOverallHeatmapModal = () => {
-  overallHeatmapModalVisible.value = true
-}
-
-// 关闭整体热力图模态框
-const closeOverallHeatmapModal = () => {
-  overallHeatmapModalVisible.value = false
-}
-
-// 格式化时间范围
-const formatTimeRange = (timeRange) => {
-  if (!timeRange || !timeRange.min || !timeRange.max) {
-    return '未知'
-  }
-  return `${timeRange.min.toFixed(2)} - ${timeRange.max.toFixed(2)}`
+  selectedHeatmapUrl.value = imageUrl
+  selectedHeatmapTitle.value = title
+  heatmapModalVisible.value = true
 }
 </script>
 
 <style scoped>
 .heatmap {
-  max-width: 1400px;
-  margin: 0 auto;
+  padding: 20px;
+  background-color: #f5f7fa;
+  min-height: 100vh;
+}
+
+.page-title {
+  color: #303133;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .info-alert {
   margin-bottom: 20px;
 }
 
-.params-panel {
-  height: fit-content;
-  position: sticky;
-  top: 20px;
+.analysis-tabs {
+  margin-bottom: 20px;
+}
+
+.card {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
 }
 
 .section-title {
+  color: #409eff;
+  margin-bottom: 15px;
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 20px;
   font-size: 16px;
-  font-weight: 600;
-  color: #2c3e50;
 }
 
 .param-help {
   font-size: 12px;
   color: #909399;
-  margin-top: 4px;
-}
-
-.upload-section {
-  margin-bottom: 20px;
-}
-
-.behavior-events {
-  margin-bottom: 20px;
-}
-
-.analysis-section {
-  margin-bottom: 20px;
+  margin-top: 2px;
 }
 
 .analysis-controls {
   display: flex;
   gap: 10px;
-  align-items: center;
+  flex-wrap: wrap;
 }
 
-.result-section {
-  margin-bottom: 20px;
+.file-labels {
+  margin-top: 20px;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 6px;
 }
 
-.result-summary {
-  margin-bottom: 20px;
+.file-label-item {
+  margin-bottom: 10px;
 }
 
-.heatmap-gallery h4 {
-  margin-bottom: 15px;
-  color: #2c3e50;
+.file-name {
+  font-size: 12px;
+  color: #606266;
+  margin-bottom: 5px;
+  word-break: break-all;
+}
+
+.heatmap-gallery {
+  margin-top: 20px;
 }
 
 .heatmap-item {
-  text-align: center;
   margin-bottom: 15px;
+  text-align: center;
 }
 
 .heatmap-image {
   width: 100%;
-  max-width: 300px;
   height: auto;
-  border: 1px solid #dcdfe6;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease;
 }
 
 .heatmap-image:hover {
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-  border-color: #409eff;
+  transform: scale(1.05);
 }
 
 .heatmap-title {
@@ -927,91 +978,78 @@ const formatTimeRange = (timeRange) => {
   font-weight: 500;
 }
 
-.heatmap-behavior-labels {
-  margin-top: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  flex-wrap: wrap;
+.single-heatmap,
+.combination-heatmap {
+  margin-top: 20px;
 }
 
-.behavior-tag {
-  font-size: 12px;
+.heatmap-container {
+  text-align: center;
+  padding: 20px;
+  background-color: #f8f9fa;
+  border-radius: 6px;
 }
 
-.arrow-icon {
-  color: #909399;
-  font-size: 14px;
+.single-heatmap-image,
+.combination-heatmap-image {
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: transform 0.3s ease;
 }
 
-/* 模态框样式 */
+.single-heatmap-image:hover,
+.combination-heatmap-image:hover {
+  transform: scale(1.02);
+}
+
+.individual-heatmaps {
+  margin-top: 20px;
+}
+
+.individual-heatmap-item {
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+.individual-heatmap-image {
+  width: 100%;
+  height: auto;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+}
+
+.individual-heatmap-image:hover {
+  transform: scale(1.05);
+}
+
 .modal-heatmap-container {
   text-align: center;
 }
 
 .modal-heatmap-image {
   max-width: 100%;
-  max-height: 70vh;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  margin-bottom: 20px;
-}
-
-.modal-behavior-info {
-  margin-top: 20px;
-}
-
-.mx-2 {
-  margin: 0 8px;
-}
-
-/* 整体热力图样式 */
-.overall-heatmap-display h4 {
-  margin-bottom: 15px;
-  color: #2c3e50;
-}
-
-.overall-heatmap-container {
-  text-align: center;
-  margin-bottom: 20px;
-}
-
-.overall-heatmap-image {
-  max-width: 100%;
   height: auto;
-  border: 1px solid #dcdfe6;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 6px;
 }
 
-.overall-heatmap-image:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  border-color: #409eff;
-  transform: scale(1.02);
+.result-summary {
+  margin-bottom: 20px;
 }
 
-.overall-heatmap-info {
-  margin-top: 10px;
-}
-
-/* 响应式设计 */
 @media (max-width: 768px) {
-  .params-panel {
-    position: static;
-    margin-bottom: 20px;
+  .heatmap {
+    padding: 10px;
   }
   
   .analysis-controls {
     flex-direction: column;
-    align-items: stretch;
   }
   
   .analysis-controls .el-button {
     width: 100%;
-    margin-bottom: 10px;
   }
 }
 </style>

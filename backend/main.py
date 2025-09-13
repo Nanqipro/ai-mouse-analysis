@@ -39,6 +39,14 @@ from src.overall_heatmap import (
     OverallHeatmapConfig,
     generate_overall_heatmap
 )
+from src.heatmap_em_sort import (
+    EMSortHeatmapConfig,
+    analyze_em_sort_heatmap
+)
+from src.heatmap_multi_day import (
+    MultiDayHeatmapConfig,
+    analyze_multiday_heatmap
+)
 import numpy as np
 from src.utils import save_plot_as_base64
 import base64
@@ -865,6 +873,205 @@ async def overall_heatmap_analysis(
         if 'temp_file' in locals() and temp_file.exists():
             temp_file.unlink()
         raise HTTPException(status_code=500, detail=f"整体热力图分析失败: {str(e)}")
+
+@app.post("/api/heatmap/em-sort")
+async def em_sort_heatmap_analysis(
+    file: UploadFile = File(...),
+    stamp_min: Optional[float] = Form(None),
+    stamp_max: Optional[float] = Form(None),
+    sort_method: str = Form("peak"),
+    custom_neuron_order: Optional[str] = Form(None),
+    calcium_wave_threshold: float = Form(1.5),
+    min_prominence: float = Form(1.0),
+    min_rise_rate: float = Form(0.1),
+    max_fall_rate: float = Form(0.05),
+    sampling_rate: float = Form(4.8)
+):
+    """EM排序热力图分析"""
+    try:
+        # 保存上传的文件
+        temp_file = TEMP_DIR / f"em_sort_heatmap_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{file.filename}"
+        with open(temp_file, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        print(f"EM排序热力图分析，文件: {temp_file}")
+        
+        # 读取数据
+        data = pd.read_excel(temp_file)
+        print(f"数据加载成功，形状: {data.shape}")
+        
+        # 解析自定义神经元顺序
+        custom_order = None
+        if custom_neuron_order:
+            try:
+                # 假设传入的是逗号分隔的字符串
+                custom_order = [neuron.strip() for neuron in custom_neuron_order.split(',') if neuron.strip()]
+            except:
+                custom_order = None
+        
+        # 创建配置对象
+        config = EMSortHeatmapConfig(
+            stamp_min=stamp_min,
+            stamp_max=stamp_max,
+            sort_method=sort_method,
+            custom_neuron_order=custom_order,
+            calcium_wave_threshold=calcium_wave_threshold,
+            min_prominence=min_prominence,
+            min_rise_rate=min_rise_rate,
+            max_fall_rate=max_fall_rate,
+            sampling_rate=sampling_rate
+        )
+        
+        # 生成EM排序热力图
+        fig, info = analyze_em_sort_heatmap(data, config)
+        
+        # 将图表转换为base64
+        plot_base64 = save_plot_as_base64(fig)
+        
+        # 清理临时文件
+        temp_file.unlink()
+        
+        return {
+            "success": True,
+            "filename": file.filename,
+            "heatmap_image": f"data:image/png;base64,{plot_base64}",
+            "analysis_info": info,
+            "config": {
+                "stamp_min": stamp_min,
+                "stamp_max": stamp_max,
+                "sort_method": sort_method,
+                "custom_neuron_order": custom_neuron_order,
+                "calcium_wave_threshold": calcium_wave_threshold,
+                "min_prominence": min_prominence,
+                "min_rise_rate": min_rise_rate,
+                "max_fall_rate": max_fall_rate,
+                "sampling_rate": sampling_rate
+            },
+            "message": "EM排序热力图生成完成"
+        }
+        
+    except Exception as e:
+        print(f"EM排序热力图分析错误: {e}")
+        # 清理临时文件
+        if 'temp_file' in locals() and temp_file.exists():
+            temp_file.unlink()
+        raise HTTPException(status_code=500, detail=f"EM排序热力图分析失败: {str(e)}")
+
+@app.post("/api/heatmap/multi-day")
+async def multi_day_heatmap_analysis(
+    files: List[UploadFile] = File(...),
+    day_labels: str = Form(...),  # 逗号分隔的天数标签，如 "day0,day3,day6,day9"
+    sort_method: str = Form("peak"),
+    calcium_wave_threshold: float = Form(1.5),
+    min_prominence: float = Form(1.0),
+    min_rise_rate: float = Form(0.1),
+    max_fall_rate: float = Form(0.05),
+    create_combination: bool = Form(True),
+    create_individual: bool = Form(True)
+):
+    """多天数据组合热力图分析"""
+    try:
+        # 解析天数标签
+        day_labels_list = [label.strip() for label in day_labels.split(',') if label.strip()]
+        
+        if len(files) != len(day_labels_list):
+            raise HTTPException(
+                status_code=400, 
+                detail=f"文件数量({len(files)})与天数标签数量({len(day_labels_list)})不匹配"
+            )
+        
+        # 保存上传的文件并读取数据
+        data_dict = {}
+        temp_files = []
+        
+        for i, (file, day_label) in enumerate(zip(files, day_labels_list)):
+            temp_file = TEMP_DIR / f"multiday_{day_label}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{file.filename}"
+            temp_files.append(temp_file)
+            
+            with open(temp_file, "wb") as buffer:
+                shutil.copyfileobj(file.file, buffer)
+            
+            # 读取数据
+            data = pd.read_excel(temp_file)
+            data_dict[day_label] = data
+            print(f"{day_label}数据加载成功，形状: {data.shape}")
+        
+        # 创建配置对象
+        config = MultiDayHeatmapConfig(
+            sort_method=sort_method,
+            calcium_wave_threshold=calcium_wave_threshold,
+            min_prominence=min_prominence,
+            min_rise_rate=min_rise_rate,
+            max_fall_rate=max_fall_rate
+        )
+        
+        # 执行多天热力图分析
+        results = analyze_multiday_heatmap(
+            data_dict, 
+            config, 
+            correspondence_table=None,  # 暂时不支持对应表
+            create_combination=create_combination,
+            create_individual=create_individual
+        )
+        
+        # 转换图形为base64
+        response_data = {
+            "success": True,
+            "filenames": [file.filename for file in files],
+            "day_labels": day_labels_list,
+            "analysis_info": results['analysis_info'],
+            "config": {
+                "sort_method": sort_method,
+                "calcium_wave_threshold": calcium_wave_threshold,
+                "min_prominence": min_prominence,
+                "min_rise_rate": min_rise_rate,
+                "max_fall_rate": max_fall_rate,
+                "create_combination": create_combination,
+                "create_individual": create_individual
+            }
+        }
+        
+        # 添加组合热力图
+        if results['combination_heatmap']:
+            combo_base64 = save_plot_as_base64(results['combination_heatmap']['figure'])
+            response_data['combination_heatmap'] = {
+                "image": f"data:image/png;base64,{combo_base64}",
+                "info": results['combination_heatmap']['info']
+            }
+        
+        # 添加单独热力图
+        individual_heatmaps = []
+        for day, heatmap_data in results['individual_heatmaps'].items():
+            individual_base64 = save_plot_as_base64(heatmap_data['figure'])
+            individual_heatmaps.append({
+                "day": day,
+                "image": f"data:image/png;base64,{individual_base64}",
+                "info": heatmap_data['info']
+            })
+        
+        response_data['individual_heatmaps'] = individual_heatmaps
+        response_data['message'] = f"多天热力图分析完成，处理了{len(day_labels_list)}天的数据"
+        
+        # 清理临时文件
+        for temp_file in temp_files:
+            if temp_file.exists():
+                temp_file.unlink()
+        
+        return response_data
+        
+    except Exception as e:
+        print(f"多天热力图分析错误: {e}")
+        # 清理临时文件
+        if 'temp_files' in locals():
+            for temp_file in temp_files:
+                if temp_file.exists():
+                    temp_file.unlink()
+        
+        # 如果是HTTPException，直接重新抛出
+        if isinstance(e, HTTPException):
+            raise e
+        
+        raise HTTPException(status_code=500, detail=f"多天热力图分析失败: {str(e)}")
 
 @app.get("/api/download/{filename}")
 async def download_file(filename: str):
