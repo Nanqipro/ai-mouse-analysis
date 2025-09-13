@@ -188,8 +188,10 @@ def get_interactive_data(file_path: str, neuron_id: str) -> Dict[str, Any]:
         包含时间和数据的字典
     """
     try:
-        # 读取数据
+        # 读取数据 - 适配element_extraction.py格式（直接读取Excel文件）
         data = pd.read_excel(file_path)
+        # 清理列名（去除可能的空格）
+        data.columns = [col.strip() for col in data.columns]
         
         if neuron_id not in data.columns:
             raise ValueError(f"神经元 {neuron_id} 不存在")
@@ -305,8 +307,14 @@ def run_batch_extraction(file_paths, output_dir, fs=4.8, **kwargs):
     current_event_id = 1
     for file_path in file_paths:
         try:
-            data_df = pd.read_excel(file_path, sheet_name='dF', header=0)
-            neuron_columns = data_df.columns[1:]
+            # 适配element_extraction.py格式（直接读取Excel文件）
+            data_df = pd.read_excel(file_path)
+            # 清理列名（去除可能的空格）
+            data_df.columns = [col.strip() for col in data_df.columns]
+            
+            # 提取神经元列（以'n'开头且后面跟数字的列）
+            neuron_columns = [col for col in data_df.columns if col.startswith('n') and col[1:].isdigit()]
+            
             file_info = {'source_file': os.path.basename(file_path)}
             result_df, next_start_id = analyze_all_neurons_transients(
                 data_df=data_df, neuron_columns=neuron_columns, fs=fs,

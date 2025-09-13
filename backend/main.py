@@ -50,6 +50,26 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 增加请求大小限制，解决431错误
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import Response
+
+class LimitUploadSizeMiddleware(BaseHTTPMiddleware):
+    def __init__(self, app, max_upload_size: int = 100 * 1024 * 1024):  # 100MB
+        super().__init__(app)
+        self.max_upload_size = max_upload_size
+
+    async def dispatch(self, request: Request, call_next):
+        if request.method == "POST":
+            content_length = request.headers.get("content-length")
+            if content_length and int(content_length) > self.max_upload_size:
+                return Response("File too large", status_code=413)
+        return await call_next(request)
+
+app.add_middleware(LimitUploadSizeMiddleware)
+
 # 创建必要的目录
 UPLOADS_DIR = Path("uploads")
 RESULTS_DIR = Path("results")
@@ -81,15 +101,20 @@ async def preview_extraction(
         with open(temp_file, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         
-        # 读取数据
-        df = pd.read_excel(temp_file, sheet_name='dF', header=0)
+        # 读取数据 - 适配element_extraction.py格式（直接读取Excel文件）
+        df = pd.read_excel(temp_file)
+        # 清理列名（去除可能的空格）
+        df.columns = [col.strip() for col in df.columns]
+        
+        # 提取神经元列（以'n'开头且后面跟数字的列）
+        neuron_columns = [col for col in df.columns if col.startswith('n') and col[1:].isdigit()]
         
         # 如果neuron_id是'temp'，只返回神经元列表
         if neuron_id == 'temp':
             temp_file.unlink()
             return {
                 "success": True,
-                "neuron_columns": df.columns[1:].tolist(),
+                "neuron_columns": neuron_columns,
                 "features": [],
                 "plot": None
             }
@@ -122,7 +147,7 @@ async def preview_extraction(
             "success": True,
             "features": feature_table.to_dict('records') if not feature_table.empty else [],
             "plot": plot_base64,
-            "neuron_columns": df.columns[1:].tolist()
+            "neuron_columns": neuron_columns
         }
         
     except Exception as e:
@@ -640,4 +665,14 @@ async def download_file(filename: str):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    # 增加请求头大小限制，解决431错误
+    uvicorn.run(
+        app, 
+        host="0.0.0.0", 
+        port=8000,
+        limit_max_requests=1000,
+        limit_concurrency=1000,
+        timeout_keep_alive=30,
+        # 增加请求头大小限制到16KB
+        h11_max_incomplete_event_size=16384
+    )

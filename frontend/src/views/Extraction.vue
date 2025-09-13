@@ -15,7 +15,8 @@
       <template #default>
         在此页面，您可以：<br>
         1. <strong>参数调试</strong>: 上传一个文件，通过可视化预览找到最佳参数。<br>
-        2. <strong>批量提取</strong>: 使用找到的参数处理所有上传的文件。
+        2. <strong>批量提取</strong>: 使用找到的参数处理所有上传的文件。<br>
+        <strong>数据格式要求</strong>: Excel文件需包含神经元列（如n4, n5, n6等）和可选的behavior列，与element_extraction.py格式一致。
       </template>
     </el-alert>
 
@@ -133,7 +134,7 @@
             </div>
             <template #tip>
               <div class="el-upload__tip">
-                支持 .xlsx 和 .xls 格式，需包含 'dF' 工作表
+                支持 .xlsx 和 .xls 格式，需包含神经元列（n4, n5, n6...）和可选的behavior列
               </div>
             </template>
           </el-upload>

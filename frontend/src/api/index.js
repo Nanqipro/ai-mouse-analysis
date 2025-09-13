@@ -5,6 +5,8 @@ import { ElMessage } from 'element-plus'
 const api = axios.create({
   baseURL: '/api',
   timeout: 300000, // 5分钟超时，因为分析可能需要较长时间
+  maxContentLength: 100 * 1024 * 1024, // 100MB
+  maxBodyLength: 100 * 1024 * 1024, // 100MB
   headers: {
     'Content-Type': 'application/json'
   }
@@ -48,7 +50,10 @@ export const extractionAPI = {
     return api.post('/extraction/preview', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
-      }
+      },
+      maxContentLength: 100 * 1024 * 1024, // 100MB
+      maxBodyLength: 100 * 1024 * 1024, // 100MB
+      timeout: 300000 // 5分钟超时
     })
   },
   
@@ -57,7 +62,10 @@ export const extractionAPI = {
     return api.post('/extraction/interactive_data', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
-      }
+      },
+      maxContentLength: 100 * 1024 * 1024,
+      maxBodyLength: 100 * 1024 * 1024,
+      timeout: 300000
     })
   },
   
@@ -66,7 +74,10 @@ export const extractionAPI = {
     return api.post('/extraction/manual_extract', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
-      }
+      },
+      maxContentLength: 100 * 1024 * 1024,
+      maxBodyLength: 100 * 1024 * 1024,
+      timeout: 300000
     })
   },
   
