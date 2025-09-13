@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>神经元数据分析工具</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-brain me-2"></i>
+                神经元数据分析工具
+            </a>
+        </div>
+    </nav>
+
+    <div class="container-fluid main-content">
+        <div class="row">
+            <!-- 步骤指示器 -->
+            <div class="col-12">
+                <div class="d-flex justify-content-center my-4">
+                    <div class="d-flex align-items-center">
+                        <div class="step active" id="step1">
+                            <i class="fas fa-cogs me-2"></i>选择模块
+                        </div>
+                        <div class="mx-3"><i class="fas fa-arrow-right"></i></div>
+                        <div class="step" id="step2">
+                            <i class="fas fa-upload me-2"></i>上传数据
+                        </div>
+                        <div class="mx-3"><i class="fas fa-arrow-right"></i></div>
+                        <div class="step" id="step3">
+                            <i class="fas fa-sliders-h me-2"></i>调节参数
+                        </div>
+                        <div class="mx-3"><i class="fas fa-arrow-right"></i></div>
+                        <div class="step" id="step4">
+                            <i class="fas fa-play me-2"></i>开始分析
+                        </div>
+                        <div class="mx-3"><i class="fas fa-arrow-right"></i></div>
+                        <div class="step" id="step5">
+                            <i class="fas fa-download me-2"></i>查看结果
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- 左侧面板 -->
+            <div class="col-lg-4">
+                <!-- 模块选择 -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-cogs me-2"></i>选择分析模块</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row" id="modules-container">
+                            {% for module_name, module_config in modules.items() %}
+                            <div class="col-12 mb-3">
+                                <div class="card module-card" data-module="{{ module_name }}">
+                                    <div class="card-body">
+                                        <h6 class="card-title">{{ module_config.name }}</h6>
+                                        <p class="card-text small">{{ module_config.description }}</p>
+                                        <div class="small text-muted">
+                                            <i class="fas fa-file me-1"></i>{{ module_config.input_format.upper() }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 文件上传 -->
+                <div class="card mb-4" id="upload-section" style="display: none;">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-upload me-2"></i>上传数据文件</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="upload-area" id="upload-area">
+                            <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                            <p class="mb-2">拖拽文件到此处或点击选择文件</p>
+                            <p class="small text-muted mb-3">支持 Excel (.xlsx) 和 CSV (.csv) 格式</p>
+                            <input type="file" id="file-input" class="d-none" accept=".xlsx,.csv">
+                            <button class="btn btn-outline-primary" onclick="document.getElementById('file-input').click()">
+                                <i class="fas fa-folder-open me-2"></i>选择文件
+                            </button>
+                        </div>
+                        
+                        <!-- 额外文件上传 -->
+                        <div id="additional-files" style="display: none;">
+                            <hr>
+                            <h6>额外文件</h6>
+                            <div id="additional-files-container"></div>
+                        </div>
+                        
+                        <div class="progress-container mt-3">
+                            <div class="progress">
+                                <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                            </div>
+                            <div class="mt-2 text-center">
+                                <small class="text-muted">上传中...</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧面板 -->
+            <div class="col-lg-8">
+                <!-- 模块详情 -->
+                <div class="card mb-4" id="module-details" style="display: none;">
+                    <div class="card-header">
+                        <h5 class="mb-0" id="module-title"></h5>
+                    </div>
+                    <div class="card-body">
+                        <p id="module-description"></p>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>输入要求：</h6>
+                                <ul id="input-requirements"></ul>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>输出结果：</h6>
+                                <ul id="output-types"></ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 参数配置 -->
+                <div class="card mb-4" id="parameters-section" style="display: none;">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-sliders-h me-2"></i>参数配置</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="parameters-form">
+                            <div id="parameters-container"></div>
+                            <div class="d-grid">
+                                <button type="button" class="btn btn-success btn-lg" id="start-analysis">
+                                    <i class="fas fa-play me-2"></i>开始分析
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- 分析状态 -->
+                <div class="card mb-4" id="analysis-status" style="display: none;">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-cog fa-spin me-2"></i>分析进行中</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="spinner-border text-primary me-3" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <div>
+                                <p class="mb-1">正在处理您的数据，请稍候...</p>
+                                <small class="text-muted" id="status-message">初始化分析...</small>
+                            </div>
+                        </div>
+                        <div class="progress mt-3">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                 role="progressbar" style="width: 100%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 分析结果 -->
+                <div class="card" id="results-section" style="display: none;">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>分析结果</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="results-container"></div>
+                        <div class="mt-3">
+                            <button class="btn btn-primary" onclick="startNewAnalysis()">
+                                <i class="fas fa-plus me-2"></i>开始新分析
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast 通知 -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div id="toast" class="toast" role="alert">
+            <div class="toast-header">
+                <i class="fas fa-info-circle text-primary me-2"></i>
+                <strong class="me-auto">通知</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body" id="toast-body"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

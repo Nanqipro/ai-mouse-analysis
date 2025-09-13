@@ -1,0 +1,220 @@
+{
+  "summary": {
+    "total": 35,
+    "passed": 32,
+    "failed": 3,
+    "success_rate": 91.42857142857143
+  },
+  "results": [
+    {
+      "test_name": "目录-config",
+      "success": true,
+      "message": "存在",
+      "timestamp": "2025-09-13T17:24:17.291621"
+    },
+    {
+      "test_name": "目录-adapters",
+      "success": true,
+      "message": "存在",
+      "timestamp": "2025-09-13T17:24:17.291650"
+    },
+    {
+      "test_name": "目录-templates",
+      "success": true,
+      "message": "存在",
+      "timestamp": "2025-09-13T17:24:17.291670"
+    },
+    {
+      "test_name": "目录-static",
+      "success": true,
+      "message": "存在",
+      "timestamp": "2025-09-13T17:24:17.291690"
+    },
+    {
+      "test_name": "目录-static/js",
+      "success": true,
+      "message": "存在",
+      "timestamp": "2025-09-13T17:24:17.291709"
+    },
+    {
+      "test_name": "目录-static/css",
+      "success": true,
+      "message": "存在",
+      "timestamp": "2025-09-13T17:24:17.291729"
+    },
+    {
+      "test_name": "文件-app.py",
+      "success": true,
+      "message": "存在",
+      "timestamp": "2025-09-13T17:24:17.291751"
+    },
+    {
+      "test_name": "文件-run.py",
+      "success": true,
+      "message": "存在",
+      "timestamp": "2025-09-13T17:24:17.291770"
+    },
+    {
+      "test_name": "文件-requirements.txt",
+      "success": true,
+      "message": "存在",
+      "timestamp": "2025-09-13T17:24:17.291792"
+    },
+    {
+      "test_name": "文件-README.md",
+      "success": true,
+      "message": "存在",
+      "timestamp": "2025-09-13T17:24:17.291812"
+    },
+    {
+      "test_name": "文件-config/modules_config.py",
+      "success": true,
+      "message": "存在",
+      "timestamp": "2025-09-13T17:24:17.291831"
+    },
+    {
+      "test_name": "文件-adapters/module_adapter.py",
+      "success": true,
+      "message": "存在",
+      "timestamp": "2025-09-13T17:24:17.291851"
+    },
+    {
+      "test_name": "文件-templates/index.html",
+      "success": true,
+      "message": "存在",
+      "timestamp": "2025-09-13T17:24:17.291871"
+    },
+    {
+      "test_name": "文件-static/js/app.js",
+      "success": true,
+      "message": "存在",
+      "timestamp": "2025-09-13T17:24:17.291890"
+    },
+    {
+      "test_name": "文件-static/css/style.css",
+      "success": true,
+      "message": "存在",
+      "timestamp": "2025-09-13T17:24:17.291910"
+    },
+    {
+      "test_name": "模块配置加载",
+      "success": true,
+      "message": "成功加载 5 个模块",
+      "timestamp": "2025-09-13T17:24:17.291940"
+    },
+    {
+      "test_name": "模块配置-cluster",
+      "success": true,
+      "message": "配置完整",
+      "timestamp": "2025-09-13T17:24:17.291956"
+    },
+    {
+      "test_name": "模块配置-heatmap",
+      "success": true,
+      "message": "配置完整",
+      "timestamp": "2025-09-13T17:24:17.291971"
+    },
+    {
+      "test_name": "模块配置-trace",
+      "success": true,
+      "message": "配置完整",
+      "timestamp": "2025-09-13T17:24:17.291986"
+    },
+    {
+      "test_name": "模块配置-effect_size",
+      "success": true,
+      "message": "配置完整",
+      "timestamp": "2025-09-13T17:24:17.292001"
+    },
+    {
+      "test_name": "模块配置-principal_neuron",
+      "success": true,
+      "message": "配置完整",
+      "timestamp": "2025-09-13T17:24:17.292017"
+    },
+    {
+      "test_name": "适配器工厂",
+      "success": true,
+      "message": "支持 5 个模块",
+      "timestamp": "2025-09-13T17:24:17.292039"
+    },
+    {
+      "test_name": "适配器-cluster",
+      "success": true,
+      "message": "创建成功",
+      "timestamp": "2025-09-13T17:24:17.292118"
+    },
+    {
+      "test_name": "适配器-heatmap",
+      "success": true,
+      "message": "创建成功",
+      "timestamp": "2025-09-13T17:24:17.292144"
+    },
+    {
+      "test_name": "适配器-trace",
+      "success": true,
+      "message": "创建成功",
+      "timestamp": "2025-09-13T17:24:17.292160"
+    },
+    {
+      "test_name": "适配器-effect_size",
+      "success": true,
+      "message": "创建成功",
+      "timestamp": "2025-09-13T17:24:17.292176"
+    },
+    {
+      "test_name": "适配器-principal_neuron",
+      "success": true,
+      "message": "创建成功",
+      "timestamp": "2025-09-13T17:24:17.292192"
+    },
+    {
+      "test_name": "测试数据创建",
+      "success": true,
+      "message": "创建了 /home/nanqipro01/gitlocal/ai-mouse-analysis/web_tool/test_data/test_neuron_data.xlsx 和 /home/nanqipro01/gitlocal/ai-mouse-analysis/web_tool/test_data/test_position_data.csv",
+      "timestamp": "2025-09-13T17:24:17.661423"
+    },
+    {
+      "test_name": "文件验证-cluster",
+      "success": false,
+      "message": "缺少必需的列: neuron, start_time, end_time, amplitude, duration",
+      "timestamp": "2025-09-13T17:24:17.760477"
+    },
+    {
+      "test_name": "文件验证-heatmap",
+      "success": true,
+      "message": "验证成功，包含 1000 个时间点，20 个神经元",
+      "timestamp": "2025-09-13T17:24:17.888502"
+    },
+    {
+      "test_name": "文件验证-trace",
+      "success": true,
+      "message": "验证成功，包含 1000 个时间点，20 个神经元",
+      "timestamp": "2025-09-13T17:24:17.997771"
+    },
+    {
+      "test_name": "文件验证-effect_size",
+      "success": true,
+      "message": "验证成功，包含 1000 个样本，20 个神经元",
+      "timestamp": "2025-09-13T17:24:18.122798"
+    },
+    {
+      "test_name": "文件验证-principal_neuron",
+      "success": true,
+      "message": "验证成功，包含 1000 个样本，20 个神经元",
+      "timestamp": "2025-09-13T17:24:18.239518"
+    },
+    {
+      "test_name": "API-/api/modules",
+      "success": false,
+      "message": "无法连接到服务器",
+      "timestamp": "2025-09-13T17:24:18.240961"
+    },
+    {
+      "test_name": "API-/api/module/cluster",
+      "success": false,
+      "message": "无法连接到服务器",
+      "timestamp": "2025-09-13T17:24:18.241543"
+    }
+  ]
+}
