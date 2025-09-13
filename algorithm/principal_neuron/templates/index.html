@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neuron Activity Visualization</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <h1>Neuron Activity</h1>
+    
+    <div class="visualization-container">
+        <canvas id="neuronCanvas"></canvas>
+    </div>
+
+    <div class="controls">
+        <button id="playPauseBtn">Play</button>
+        <label for="speedControl">Speed:</label>
+        <input type="range" id="speedControl" min="1" max="100" value="20">
+        <span id="speedValue">20 FPS</span>
+        <br>
+        <label for="frameSlider">Frame:</label>
+        <input type="range" id="frameSlider" min="0" max="0" value="0">
+        <span id="currentFrame">Frame: 0 / 0</span>
+        <br>
+        <span id="behaviorLabel">Behavior: ---</span>
+        <br>
+        <div class="control-group">
+            <label for="activationThresholdSlider">激活阈值: </label>
+            <input type="range" id="activationThresholdSlider" min="0.05" max="1.0" value="0.3" step="0.01">
+            <span id="activationThresholdValue">0.3</span>
+        </div>
+    </div>
+
+    <div class="colorbar-container">
+        <canvas id="colorbarCanvas" width="50" height="200"></canvas>
+        <div id="minActivityLabel">Min: 0.00</div>
+        <div id="maxActivityLabel">Max: 1.00</div>
+        <div>Activity Strength</div>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html> 
