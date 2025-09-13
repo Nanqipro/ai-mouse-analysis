@@ -146,7 +146,7 @@ async def preview_extraction(
         return {
             "success": True,
             "features": feature_table.to_dict('records') if not feature_table.empty else [],
-            "plot": plot_base64,
+            "plot": f"data:image/png;base64,{plot_base64}",
             "neuron_columns": neuron_columns
         }
         
@@ -670,9 +670,9 @@ if __name__ == "__main__":
         app, 
         host="0.0.0.0", 
         port=8000,
-        limit_max_requests=1000,
+        limit_max_requests=2000,
         limit_concurrency=1000,
         timeout_keep_alive=30,
-        # 增加请求头大小限制到16KB
-        h11_max_incomplete_event_size=16384
+        # 增加请求头大小限制以解决431错误 - 设置为1MB
+        h11_max_incomplete_event_size=1048576
     )

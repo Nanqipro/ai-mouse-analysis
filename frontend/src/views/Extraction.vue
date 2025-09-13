@@ -529,6 +529,9 @@ const generatePreview = async () => {
       if (response.success) {
         previewResult.value = response
         ElMessage.success('预览生成成功')
+      } else {
+        ElMessage.error('预览生成失败: ' + (response.message || '未知错误'))
+        console.error('预览响应:', response)
       }
     } else {
       // 交互式模式
@@ -537,6 +540,7 @@ const generatePreview = async () => {
     }
   } catch (error) {
     console.error('预览生成失败:', error)
+    ElMessage.error('预览生成失败: ' + (error.response?.data?.detail || error.message || '网络错误'))
   } finally {
     previewLoading.value = false
   }
