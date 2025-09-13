@@ -97,6 +97,15 @@ export const extractionAPI = {
         'Content-Type': 'multipart/form-data'
       }
     })
+  },
+  
+  // 保存预览结果
+  savePreviewResult(formData) {
+    return api.post('/extraction/save_preview', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
   }
 }
 
@@ -107,12 +116,72 @@ export const clusteringAPI = {
     return api.get('/results/files')
   },
   
-  // 执行聚类分析
+  // 执行综合聚类分析
   analyze(data) {
-    return api.post('/clustering/analyze', data, {
+    const formData = new FormData()
+    
+    // 添加基本参数
+    formData.append('filename', data.filename)
+    if (data.k !== null && data.k !== undefined) {
+      formData.append('k', data.k)
+    }
+    formData.append('algorithm', data.algorithm || 'kmeans')
+    formData.append('reduction_method', data.reduction_method || 'pca')
+    formData.append('auto_k', data.auto_k || false)
+    formData.append('auto_k_range', data.auto_k_range || '2,10')
+    
+    // 添加特征权重（如果有）
+    if (data.feature_weights) {
+      formData.append('feature_weights', JSON.stringify(data.feature_weights))
+    }
+    
+    // 添加DBSCAN参数
+    if (data.algorithm === 'dbscan') {
+      formData.append('dbscan_eps', data.dbscan_eps || 0.5)
+      formData.append('dbscan_min_samples', data.dbscan_min_samples || 5)
+    }
+    
+    return api.post('/clustering/analyze', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
-      }
+      },
+      timeout: 600000 // 10分钟超时，聚类分析可能需要较长时间
+    })
+  },
+  
+  // 确定最佳K值
+  findOptimalK(data) {
+    const formData = new FormData()
+    formData.append('filename', data.filename)
+    formData.append('max_k', data.max_k || 10)
+    
+    if (data.feature_weights) {
+      formData.append('feature_weights', JSON.stringify(data.feature_weights))
+    }
+    
+    return api.post('/clustering/optimal_k', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      },
+      timeout: 300000 // 5分钟超时
+    })
+  },
+  
+  // 比较不同K值的效果
+  compareK(data) {
+    const formData = new FormData()
+    formData.append('filename', data.filename)
+    formData.append('k_values', data.k_values || '2,3,4,5')
+    
+    if (data.feature_weights) {
+      formData.append('feature_weights', JSON.stringify(data.feature_weights))
+    }
+    
+    return api.post('/clustering/compare_k', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      },
+      timeout: 600000 // 10分钟超时
     })
   }
 }

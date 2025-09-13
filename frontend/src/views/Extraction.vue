@@ -339,17 +339,46 @@
             </el-descriptions>
           </div>
           
-          <!-- 去重操作按钮 -->
+          <!-- 操作按钮区域 -->
           <div class="feature-actions" style="margin-top: 15px;">
-            <el-button
-              type="warning"
-              :loading="deduplicateLoading"
-              @click="manualDeduplicate"
-              style="width: 100%"
-            >
-              <el-icon><Delete /></el-icon>
-              手动去重特征列表
-            </el-button>
+            <el-row :gutter="10">
+              <el-col :span="24">
+                <el-button
+                  type="warning"
+                  :loading="deduplicateLoading"
+                  @click="manualDeduplicate"
+                  style="width: 100%; margin-bottom: 10px;"
+                >
+                  <el-icon><Delete /></el-icon>
+                  手动去重特征列表
+                </el-button>
+              </el-col>
+            </el-row>
+            
+            <el-row :gutter="10">
+              <el-col :span="12">
+                <el-button
+                  type="primary"
+                  :loading="savePreviewLoading"
+                  @click="savePreviewResult"
+                  style="width: 100%;"
+                >
+                  <el-icon><Download /></el-icon>
+                  保存当前结果
+                </el-button>
+              </el-col>
+              <el-col :span="12">
+                <el-button
+                  type="success"
+                  @click="goToClustering"
+                  :disabled="!hasValidFeatures"
+                  style="width: 100%;"
+                >
+                  <el-icon><Right /></el-icon>
+                  聚类分析
+                </el-button>
+              </el-col>
+            </el-row>
           </div>
         </div>
         
@@ -409,8 +438,9 @@
 </template>
 
 <script setup>
-import { ref, reactive, nextTick, onMounted, onUnmounted } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ref, reactive, computed, nextTick, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   DataAnalysis,
   Setting,
@@ -429,6 +459,9 @@ import {
 import { extractionAPI, downloadAPI } from '@/api'
 import * as echarts from 'echarts'
 
+// 路由实例
+const router = useRouter()
+
 // 响应式数据
 const uploadRef = ref()
 const fileList = ref([])
@@ -446,10 +479,18 @@ const interactiveData = ref(null)
 const selectedTimeRange = ref(null)
 const manualExtractLoading = ref(false)
 const deduplicateLoading = ref(false)
+const savePreviewLoading = ref(false)
 const clickCount = ref(0)
 const startTime = ref(null)
 
 let chartInstance = null
+
+// 计算属性
+const hasValidFeatures = computed(() => {
+  return previewResult.value && 
+         previewResult.value.features && 
+         previewResult.value.features.length > 0
+})
 
 // 参数配置
 const params = reactive({
@@ -609,7 +650,78 @@ const downloadResult = async () => {
     ElMessage.success('文件下载成功')
   } catch (error) {
     console.error('下载失败:', error)
+    ElMessage.error('文件下载失败')
   }
+}
+
+// 保存预览结果
+const savePreviewResult = async () => {
+  if (!hasValidFeatures.value) {
+    ElMessage.warning('没有可保存的特征数据')
+    return
+  }
+  
+  if (!selectedNeuron.value || !fileList.value.length) {
+    ElMessage.warning('请确保已选择文件和神经元')
+    return
+  }
+  
+  savePreviewLoading.value = true
+  try {
+    // 构建要保存的数据
+    const saveData = {
+      filename: fileList.value[0].name,
+      neuron: selectedNeuron.value,
+      features: previewResult.value.features,
+      params: params,
+      total_features: previewResult.value.features.length,
+      manual_features: previewResult.value.features.filter(f => f.isManualExtracted).length,
+      auto_features: previewResult.value.features.filter(f => !f.isManualExtracted).length
+    }
+    
+    // 调用后端API保存单神经元结果
+    const formData = new FormData()
+    formData.append('data', JSON.stringify(saveData))
+    
+    const response = await extractionAPI.savePreviewResult(formData)
+    
+    if (response.success) {
+      ElMessage.success(`预览结果已保存: ${response.filename}`)
+      
+      // 询问是否直接跳转到聚类分析
+      ElMessageBox.confirm(
+        '预览结果已保存成功，是否立即前往聚类分析页面？',
+        '保存成功',
+        {
+          confirmButtonText: '前往聚类分析',
+          cancelButtonText: '稍后再去',
+          type: 'success',
+        }
+      ).then(() => {
+        goToClustering()
+      }).catch(() => {
+        // 用户取消，不做任何操作
+      })
+    } else {
+      ElMessage.error('保存失败: ' + (response.message || '未知错误'))
+    }
+  } catch (error) {
+    console.error('保存失败:', error)
+    ElMessage.error('保存失败: ' + (error.response?.data?.detail || error.message || '网络错误'))
+  } finally {
+    savePreviewLoading.value = false
+  }
+}
+
+// 跳转到聚类分析
+const goToClustering = () => {
+  if (!hasValidFeatures.value) {
+    ElMessage.warning('当前没有特征数据，建议先进行事件提取')
+    return
+  }
+  
+  router.push('/clustering')
+  ElMessage.success('已跳转到聚类分析页面')
 }
 
 // 预览模式切换

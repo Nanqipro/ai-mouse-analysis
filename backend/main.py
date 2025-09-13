@@ -18,7 +18,12 @@ from src.clustering_logic import (
     cluster_kmeans,
     visualize_clusters_2d,
     visualize_feature_distribution,
-    analyze_clusters
+    analyze_clusters,
+    generate_comprehensive_cluster_analysis,
+    determine_optimal_k,
+    cluster_dbscan,
+    create_k_comparison_plot,
+    plot_to_base64
 )
 from src.heatmap_behavior import (
     BehaviorHeatmapConfig,
@@ -146,7 +151,7 @@ async def preview_extraction(
         return {
             "success": True,
             "features": feature_table.to_dict('records') if not feature_table.empty else [],
-            "plot": f"data:image/png;base64,{plot_base64}",
+            "plot": plot_base64,
             "neuron_columns": neuron_columns
         }
         
@@ -285,6 +290,79 @@ async def batch_extraction(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/api/extraction/save_preview")
+async def save_preview_result(
+    data: str = Form(...)
+):
+    """保存单神经元预览结果"""
+    try:
+        # 解析前端传来的数据
+        save_data = json.loads(data)
+        
+        # 构建输出文件名
+        original_filename = save_data['filename']
+        neuron = save_data['neuron']
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        base_name = Path(original_filename).stem
+        output_filename = f"{base_name}_{neuron}_features_{timestamp}.xlsx"
+        output_path = RESULTS_DIR / output_filename
+        
+        # 构建DataFrame
+        features_data = []
+        for i, feature in enumerate(save_data['features']):
+            feature_row = {
+                'event_id': i + 1,
+                'neuron': neuron,
+                'amplitude': feature.get('amplitude', 0),
+                'duration': feature.get('duration', 0),
+                'fwhm': feature.get('fwhm', 0),
+                'rise_time': feature.get('rise_time', 0),
+                'decay_time': feature.get('decay_time', 0),
+                'auc': feature.get('auc', 0),
+                'snr': feature.get('snr', 0),
+                'start_idx': feature.get('start_idx', 0),
+                'peak_idx': feature.get('peak_idx', 0),
+                'end_idx': feature.get('end_idx', 0),
+                'start_time': feature.get('start_time', 0),
+                'peak_time': feature.get('peak_time', 0),
+                'end_time': feature.get('end_time', 0),
+                'extraction_method': 'manual' if feature.get('isManualExtracted', False) else 'auto',
+                'source_file': original_filename
+            }
+            features_data.append(feature_row)
+        
+        # 创建DataFrame并保存
+        df = pd.DataFrame(features_data)
+        df.to_excel(output_path, index=False)
+        
+        # 创建元数据
+        metadata = {
+            'original_file': original_filename,
+            'neuron': neuron,
+            'total_features': save_data['total_features'],
+            'manual_features': save_data['manual_features'],
+            'auto_features': save_data['auto_features'],
+            'extraction_params': save_data['params'],
+            'created_at': datetime.now().isoformat(),
+            'file_type': 'single_neuron_preview'
+        }
+        
+        # 保存元数据
+        metadata_path = RESULTS_DIR / f"{base_name}_{neuron}_metadata_{timestamp}.json"
+        with open(metadata_path, 'w', encoding='utf-8') as f:
+            json.dump(metadata, f, ensure_ascii=False, indent=2)
+        
+        return {
+            "success": True, 
+            "filename": output_filename,
+            "features_count": len(features_data),
+            "message": f"成功保存 {len(features_data)} 个特征"
+        }
+        
+    except Exception as e:
+        print(f"保存预览结果错误: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"保存失败: {str(e)}")
+
 @app.get("/api/results/files")
 async def list_result_files():
     """获取结果文件列表"""
@@ -302,13 +380,19 @@ async def list_result_files():
             except (ValueError, IndexError):
                 friendly_name = basename
             
+            # 获取文件的创建时间
+            stat = file_path.stat()
+            created_at = datetime.fromtimestamp(stat.st_mtime).isoformat()
+            
             files_info.append({
                 "filename": basename,
                 "friendly_name": friendly_name,
-                "path": str(file_path)
+                "path": str(file_path),
+                "created_at": created_at,
+                "size": stat.st_size
             })
         
-        return {"files": files_info}
+        return {"success": True, "files": files_info}
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -316,54 +400,186 @@ async def list_result_files():
 @app.post("/api/clustering/analyze")
 async def clustering_analysis(
     filename: str = Form(...),
-    k_value: int = Form(3),
-    dim_reduction_method: str = Form("pca")
+    k: Optional[int] = Form(None),
+    algorithm: str = Form("kmeans"),
+    reduction_method: str = Form("pca"),
+    feature_weights: Optional[str] = Form(None),
+    auto_k: bool = Form(False),
+    auto_k_range: str = Form("2,10"),
+    dbscan_eps: float = Form(0.5),
+    dbscan_min_samples: int = Form(5)
 ):
-    """执行聚类分析"""
+    """
+    执行综合聚类分析
+    
+    参数:
+    - filename: 数据文件名
+    - k: K-means聚类数（如果为None且auto_k=True，则自动确定）
+    - algorithm: 聚类算法 ('kmeans' 或 'dbscan')
+    - reduction_method: 降维方法 ('pca' 或 'tsne')
+    - feature_weights: JSON格式的特征权重字典
+    - auto_k: 是否自动确定最佳K值
+    - auto_k_range: 自动确定K值的搜索范围，格式 "min,max"
+    - dbscan_eps: DBSCAN的eps参数
+    - dbscan_min_samples: DBSCAN的min_samples参数
+    """
     try:
         file_path = RESULTS_DIR / filename
         if not file_path.exists():
             raise HTTPException(status_code=404, detail="文件不存在")
         
-        # 加载数据
+        # 解析特征权重
+        weights = None
+        if feature_weights:
+            try:
+                weights = json.loads(feature_weights)
+            except json.JSONDecodeError:
+                raise HTTPException(status_code=400, detail="特征权重格式错误，应为JSON格式")
+        
+        # 解析自动K值范围
+        auto_k_min, auto_k_max = map(int, auto_k_range.split(','))
+        
+        # 如果启用自动K值且使用K-means，则将k设为None
+        if auto_k and algorithm == 'kmeans':
+            k = None
+        
+        # 执行综合聚类分析
+        result = generate_comprehensive_cluster_analysis(
+            file_path=str(file_path),
+            k=k,
+            algorithm=algorithm,
+            feature_weights=weights,
+            reduction_method=reduction_method,
+            auto_k_range=(auto_k_min, auto_k_max),
+            dbscan_eps=dbscan_eps,
+            dbscan_min_samples=dbscan_min_samples
+        )
+        
+        # 添加成功标志和请求参数
+        result.update({
+            "success": True,
+            "request_params": {
+                "filename": filename,
+                "k": k,
+                "algorithm": algorithm,
+                "reduction_method": reduction_method,
+                "feature_weights": weights,
+                "auto_k": auto_k,
+                "auto_k_range": (auto_k_min, auto_k_max)
+            }
+        })
+        
+        return result
+        
+    except Exception as e:
+        print(f"聚类分析错误: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"聚类分析失败: {str(e)}")
+
+@app.post("/api/clustering/optimal_k")
+async def find_optimal_k(
+    filename: str = Form(...),
+    max_k: int = Form(10),
+    feature_weights: Optional[str] = Form(None)
+):
+    """
+    确定最佳聚类数K
+    """
+    try:
+        file_path = RESULTS_DIR / filename
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail="文件不存在")
+        
+        # 解析特征权重
+        weights = None
+        if feature_weights:
+            try:
+                weights = json.loads(feature_weights)
+            except json.JSONDecodeError:
+                raise HTTPException(status_code=400, detail="特征权重格式错误，应为JSON格式")
+        
+        # 加载和预处理数据
         df = load_data(str(file_path))
+        features_scaled, feature_names, df_clean = enhance_preprocess_data(df, weights)
         
-        # 预处理
-        features_scaled, feature_names, df_clean = enhance_preprocess_data(df)
+        # 确定最佳K值
+        optimal_k, inertia_values, silhouette_scores = determine_optimal_k(features_scaled, max_k)
         
-        # 聚类
-        labels = cluster_kmeans(features_scaled, k_value)
-        df_clean['cluster'] = labels
-        
-        # 分析
-        cluster_summary = analyze_clusters(df_clean.drop('cluster', axis=1), labels)
-        
-        # 可视化
-        fig_2d = visualize_clusters_2d(features_scaled, labels, feature_names, method=dim_reduction_method.lower())
-        fig_dist = visualize_feature_distribution(df_clean, labels)
-        
-        # 转换图表为base64
-        plot_2d_base64 = save_plot_as_base64(fig_2d)
-        plot_dist_base64 = save_plot_as_base64(fig_dist)
-        
-        # 保存结果
-        output_basename = filename.replace('_features.xlsx', '')
-        output_filename = f"{output_basename}_clustered_k{k_value}_{datetime.now().strftime('%Y%m%d-%H%M%S')}.xlsx"
-        output_path = RESULTS_DIR / output_filename
-        df_clean.to_excel(output_path, index=False)
+        # 生成K值比较图
+        from src.clustering_logic import create_optimal_k_plot
+        k_range = list(range(2, max_k + 1))
+        k_plot = create_optimal_k_plot(inertia_values, silhouette_scores, k_range)
+        k_plot_base64 = plot_to_base64(k_plot)
         
         return {
             "success": True,
-            "summary": cluster_summary.to_dict('records'),
-            "plot_2d": plot_2d_base64,
-            "plot_dist": plot_dist_base64,
-            "result_file": output_filename,
-            "k_value": k_value,
-            "method": dim_reduction_method
+            "optimal_k": optimal_k,
+            "k_range": k_range,
+            "inertia_values": inertia_values,
+            "silhouette_scores": silhouette_scores,
+            "optimal_k_plot": k_plot_base64,
+            "data_info": {
+                "total_samples": len(df),
+                "valid_samples": len(df_clean),
+                "features_used": feature_names
+            }
         }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"最佳K值分析错误: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"最佳K值分析失败: {str(e)}")
+
+@app.post("/api/clustering/compare_k")
+async def compare_k_values(
+    filename: str = Form(...),
+    k_values: str = Form("2,3,4,5"),
+    feature_weights: Optional[str] = Form(None)
+):
+    """
+    比较不同K值的聚类效果
+    """
+    try:
+        file_path = RESULTS_DIR / filename
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail="文件不存在")
+        
+        # 解析K值列表
+        k_list = [int(k.strip()) for k in k_values.split(',')]
+        
+        # 解析特征权重
+        weights = None
+        if feature_weights:
+            try:
+                weights = json.loads(feature_weights)
+            except json.JSONDecodeError:
+                raise HTTPException(status_code=400, detail="特征权重格式错误，应为JSON格式")
+        
+        # 加载和预处理数据
+        df = load_data(str(file_path))
+        features_scaled, feature_names, df_clean = enhance_preprocess_data(df, weights)
+        
+        # 创建K值比较图
+        comparison_plot, silhouette_scores_dict = create_k_comparison_plot(features_scaled, k_list)
+        comparison_plot_base64 = plot_to_base64(comparison_plot)
+        
+        # 找出最佳K值
+        best_k = max(silhouette_scores_dict, key=silhouette_scores_dict.get)
+        
+        return {
+            "success": True,
+            "k_values": k_list,
+            "silhouette_scores": silhouette_scores_dict,
+            "best_k": best_k,
+            "comparison_plot": comparison_plot_base64,
+            "data_info": {
+                "total_samples": len(df),
+                "valid_samples": len(df_clean),
+                "features_used": feature_names
+            }
+        }
+        
+    except Exception as e:
+        print(f"K值比较错误: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"K值比较失败: {str(e)}")
 
 @app.post("/api/behavior/detect")
 async def detect_behavior_events(
@@ -670,9 +886,9 @@ if __name__ == "__main__":
         app, 
         host="0.0.0.0", 
         port=8000,
-        limit_max_requests=2000,
+        limit_max_requests=1000,
         limit_concurrency=1000,
         timeout_keep_alive=30,
-        # 增加请求头大小限制以解决431错误 - 设置为1MB
-        h11_max_incomplete_event_size=1048576
+        # 增加请求头大小限制到16KB
+        h11_max_incomplete_event_size=16384
     )
