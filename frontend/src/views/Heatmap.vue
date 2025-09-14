@@ -918,10 +918,6 @@ const handleBehaviorFileRemove = (file, fileList) => {
 
 const handleEmSortFileChange = async (file, fileList) => {
   emSortFileList.value = fileList
-  
-  if (fileList.length > 0) {
-    await fetchEmSortLabels()
-  }
 }
 
 const handleEmSortFileRemove = (file, fileList) => {
@@ -1007,15 +1003,26 @@ const startEmSortAnalysis = async () => {
   try {
     const formData = new FormData()
     formData.append('file', emSortFileList.value[0].raw)
-    formData.append('stamp_min', emSortParams.stamp_min || '')
-    formData.append('stamp_max', emSortParams.stamp_max || '')
+    
+    // 只有当值不为null且不为undefined时才添加参数
+    if (emSortParams.stamp_min !== null && emSortParams.stamp_min !== undefined) {
+      formData.append('stamp_min', emSortParams.stamp_min.toString())
+    }
+    if (emSortParams.stamp_max !== null && emSortParams.stamp_max !== undefined) {
+      formData.append('stamp_max', emSortParams.stamp_max.toString())
+    }
+    
     formData.append('sort_method', emSortParams.sort_method)
-    formData.append('custom_neuron_order', emSortParams.custom_neuron_order || '')
-    formData.append('sampling_rate', emSortParams.sampling_rate)
-    formData.append('calcium_wave_threshold', emSortParams.calcium_wave_threshold)
-    formData.append('min_prominence', emSortParams.min_prominence)
-    formData.append('min_rise_rate', emSortParams.min_rise_rate)
-    formData.append('max_fall_rate', emSortParams.max_fall_rate)
+    
+    if (emSortParams.custom_neuron_order) {
+      formData.append('custom_neuron_order', emSortParams.custom_neuron_order)
+    }
+    
+    formData.append('sampling_rate', emSortParams.sampling_rate.toString())
+    formData.append('calcium_wave_threshold', emSortParams.calcium_wave_threshold.toString())
+    formData.append('min_prominence', emSortParams.min_prominence.toString())
+    formData.append('min_rise_rate', emSortParams.min_rise_rate.toString())
+    formData.append('max_fall_rate', emSortParams.max_fall_rate.toString())
     
     const response = await fetch('http://localhost:8000/api/heatmap/em-sort', {
       method: 'POST',
