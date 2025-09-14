@@ -84,6 +84,27 @@
           </div>
         </el-col>
       </el-row>
+      
+      <el-row :gutter="20" style="margin-top: 20px;">
+        <el-col :xs="24" :sm="12" :md="8" :lg="8">
+          <div class="feature-card card">
+            <div class="feature-icon principal-neuron">
+              <el-icon><DataAnalysis /></el-icon>
+            </div>
+            <h3>🧠 主神经元分析</h3>
+            <ul class="feature-list">
+              <li>分析神经元活动的效应大小和显著性</li>
+              <li>识别关键神经元和活动模式</li>
+              <li>生成神经元活动图和动画可视化</li>
+              <li>进行多条件间的共享神经元分析</li>
+            </ul>
+            <el-button type="info" @click="$router.push('/principal-neuron')" class="feature-button">
+              开始主神经元分析
+              <el-icon class="el-icon--right"><ArrowRight /></el-icon>
+            </el-button>
+          </div>
+        </el-col>
+      </el-row>
     </div>
 
     <!-- 使用流程 -->

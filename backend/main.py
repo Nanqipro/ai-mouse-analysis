@@ -47,6 +47,7 @@ from src.heatmap_multi_day import (
     MultiDayHeatmapConfig,
     analyze_multiday_heatmap
 )
+from src.principal_neuron_logic import principal_analyzer
 import numpy as np
 from src.utils import save_plot_as_base64
 import base64
@@ -1156,6 +1157,239 @@ async def download_file(filename: str):
         filename=filename,
         media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
+
+# ==================== Principal Neuron Analysis APIs ====================
+
+@app.post("/api/principal-neuron/analyze")
+async def principal_neuron_analysis(
+    data_file: UploadFile = File(...),
+    positions_file: UploadFile = File(...)
+):
+    """
+    主神经元分析 - 完整分析流程
+    """
+    try:
+        # 保存上传的文件
+        data_temp_path = TEMP_DIR / f"pn_data_{data_file.filename}"
+        positions_temp_path = TEMP_DIR / f"pn_positions_{positions_file.filename}"
+        
+        with open(data_temp_path, "wb") as buffer:
+            shutil.copyfileobj(data_file.file, buffer)
+        
+        with open(positions_temp_path, "wb") as buffer:
+            shutil.copyfileobj(positions_file.file, buffer)
+        
+        # 执行分析
+        result = principal_analyzer.get_analysis_summary(
+            str(data_temp_path), 
+            str(positions_temp_path)
+        )
+        
+        # 清理临时文件
+        data_temp_path.unlink(missing_ok=True)
+        positions_temp_path.unlink(missing_ok=True)
+        
+        if result['success']:
+            return {
+                "success": True,
+                "message": "主神经元分析完成",
+                "data": result
+            }
+        else:
+            raise HTTPException(status_code=500, detail=result.get('error', '分析失败'))
+            
+    except Exception as e:
+        # 清理临时文件
+        if 'data_temp_path' in locals():
+            data_temp_path.unlink(missing_ok=True)
+        if 'positions_temp_path' in locals():
+            positions_temp_path.unlink(missing_ok=True)
+        
+        raise HTTPException(status_code=500, detail=f"分析过程中发生错误: {str(e)}")
+
+@app.post("/api/principal-neuron/effect-size")
+async def analyze_effect_sizes(
+    files: List[UploadFile] = File(...),
+    effect_size_threshold: float = Form(0.5),
+    significance_threshold: float = Form(0.05)
+):
+    """
+    计算神经元效应量
+    """
+    try:
+        if not files:
+            raise HTTPException(status_code=400, detail="请上传至少一个数据文件")
+        
+        # 保存第一个文件用于分析
+        data_file = files[0]
+        data_temp_path = TEMP_DIR / f"pn_effect_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{data_file.filename}"
+        with open(data_temp_path, "wb") as buffer:
+            shutil.copyfileobj(data_file.file, buffer)
+        
+        # 执行效应量分析
+        result = principal_analyzer.analyze_effect_sizes(
+            str(data_temp_path), 
+            None  # positions_file暂时不使用
+        )
+        
+        # 清理临时文件
+        data_temp_path.unlink(missing_ok=True)
+        
+        # 添加阈值信息
+        if isinstance(result, dict):
+            result['effect_size_threshold'] = effect_size_threshold
+            result['significance_threshold'] = significance_threshold
+        
+        return result
+            
+    except Exception as e:
+        # 清理临时文件
+        if 'data_temp_path' in locals() and data_temp_path.exists():
+            data_temp_path.unlink(missing_ok=True)
+        
+        raise HTTPException(status_code=500, detail=f"效应量分析过程中发生错误: {str(e)}")
+
+@app.post("/api/principal-neuron/activity-plot")
+async def generate_activity_maps(
+    files: List[UploadFile] = File(...),
+    effect_size_threshold: float = Form(0.5)
+):
+    """
+    生成神经元活动图
+    """
+    try:
+        # 保存上传的文件
+        data_temp_path = TEMP_DIR / f"pn_maps_data_{data_file.filename}"
+        positions_temp_path = TEMP_DIR / f"pn_maps_positions_{positions_file.filename}"
+        
+        with open(data_temp_path, "wb") as buffer:
+            shutil.copyfileobj(data_file.file, buffer)
+        
+        with open(positions_temp_path, "wb") as buffer:
+            shutil.copyfileobj(positions_file.file, buffer)
+        
+        # 生成活动图
+        result = principal_analyzer.generate_neuron_activity_maps(
+            str(data_temp_path), 
+            str(positions_temp_path)
+        )
+        
+        # 清理临时文件
+        data_temp_path.unlink(missing_ok=True)
+        positions_temp_path.unlink(missing_ok=True)
+        
+        if result['success']:
+            return {
+                "success": True,
+                "message": "神经元活动图生成完成",
+                "data": result
+            }
+        else:
+            raise HTTPException(status_code=500, detail=result.get('error', '活动图生成失败'))
+            
+    except Exception as e:
+        # 清理临时文件
+        if 'data_temp_path' in locals():
+            data_temp_path.unlink(missing_ok=True)
+        if 'positions_temp_path' in locals():
+            positions_temp_path.unlink(missing_ok=True)
+        
+        raise HTTPException(status_code=500, detail=f"活动图生成过程中发生错误: {str(e)}")
+
+@app.post("/api/principal-neuron/shared-neurons")
+async def analyze_shared_neurons(
+    files: List[UploadFile] = File(...),
+    effect_size_threshold: float = Form(0.5)
+):
+    """
+    分析行为间的共享神经元
+    """
+    try:
+        # 保存上传的文件
+        data_temp_path = TEMP_DIR / f"pn_shared_data_{data_file.filename}"
+        positions_temp_path = TEMP_DIR / f"pn_shared_positions_{positions_file.filename}"
+        
+        with open(data_temp_path, "wb") as buffer:
+            shutil.copyfileobj(data_file.file, buffer)
+        
+        with open(positions_temp_path, "wb") as buffer:
+            shutil.copyfileobj(positions_file.file, buffer)
+        
+        # 执行共享神经元分析
+        result = principal_analyzer.analyze_shared_neurons(
+            str(data_temp_path), 
+            str(positions_temp_path)
+        )
+        
+        # 清理临时文件
+        data_temp_path.unlink(missing_ok=True)
+        positions_temp_path.unlink(missing_ok=True)
+        
+        if result['success']:
+            return {
+                "success": True,
+                "message": "共享神经元分析完成",
+                "data": result
+            }
+        else:
+            raise HTTPException(status_code=500, detail=result.get('error', '共享神经元分析失败'))
+            
+    except Exception as e:
+        # 清理临时文件
+        if 'data_temp_path' in locals():
+            data_temp_path.unlink(missing_ok=True)
+        if 'positions_temp_path' in locals():
+            positions_temp_path.unlink(missing_ok=True)
+        
+        raise HTTPException(status_code=500, detail=f"共享神经元分析过程中发生错误: {str(e)}")
+
+@app.post("/api/principal-neuron/animation")
+async def get_animation_data(
+    files: List[UploadFile] = File(...),
+    frames: int = Form(50),
+    interval: int = Form(200)
+):
+    """
+    获取神经元动画数据
+    """
+    try:
+        # 保存上传的文件
+        data_temp_path = TEMP_DIR / f"pn_anim_data_{data_file.filename}"
+        positions_temp_path = TEMP_DIR / f"pn_anim_positions_{positions_file.filename}"
+        
+        with open(data_temp_path, "wb") as buffer:
+            shutil.copyfileobj(data_file.file, buffer)
+        
+        with open(positions_temp_path, "wb") as buffer:
+            shutil.copyfileobj(positions_file.file, buffer)
+        
+        # 获取动画数据
+        result = principal_analyzer.get_neuron_animation_data(
+            str(data_temp_path), 
+            str(positions_temp_path)
+        )
+        
+        # 清理临时文件
+        data_temp_path.unlink(missing_ok=True)
+        positions_temp_path.unlink(missing_ok=True)
+        
+        if result['success']:
+            return {
+                "success": True,
+                "message": "动画数据获取完成",
+                "data": result['animation_data']
+            }
+        else:
+            raise HTTPException(status_code=500, detail=result.get('error', '动画数据获取失败'))
+            
+    except Exception as e:
+        # 清理临时文件
+        if 'data_temp_path' in locals():
+            data_temp_path.unlink(missing_ok=True)
+        if 'positions_temp_path' in locals():
+            positions_temp_path.unlink(missing_ok=True)
+        
+        raise HTTPException(status_code=500, detail=f"动画数据获取过程中发生错误: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn

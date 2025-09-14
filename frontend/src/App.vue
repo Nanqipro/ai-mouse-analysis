@@ -30,6 +30,10 @@
               <el-icon><TrendCharts /></el-icon>
               <span>热力图分析</span>
             </el-menu-item>
+            <el-menu-item index="/principal-neuron">
+              <el-icon><DataAnalysis /></el-icon>
+              <span>主神经元分析</span>
+            </el-menu-item>
           </el-menu>
         </div>
       </el-header>
