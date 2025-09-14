@@ -760,7 +760,24 @@ const startBehaviorAnalysis = async () => {
     
   } catch (error) {
     console.error('行为序列分析失败:', error)
-    ElMessage.error('行为序列分析失败: ' + (error.message || '未知错误'))
+    
+    // 处理特定的HTTP错误
+    if (error.response) {
+      const status = error.response.status
+      const detail = error.response.data?.detail || error.message
+      
+      if (status === 431) {
+        ElMessage.error('文件过大或请求头过大，请尝试使用较小的文件或分批上传')
+      } else if (status === 413) {
+        ElMessage.error('文件过大，请选择较小的文件（建议小于100MB）')
+      } else if (status === 400) {
+        ElMessage.error(`数据格式错误: ${detail}`)
+      } else {
+        ElMessage.error(`分析失败 (${status}): ${detail}`)
+      }
+    } else {
+      ElMessage.error('网络连接失败，请检查后端服务是否正常运行')
+    }
   } finally {
     behaviorAnalysisLoading.value = false
   }
@@ -804,7 +821,24 @@ const startEmSortAnalysis = async () => {
     
   } catch (error) {
     console.error('EM排序分析失败:', error)
-    ElMessage.error('EM排序分析失败: ' + (error.message || '未知错误'))
+    
+    // 处理特定的HTTP错误
+    if (error.response) {
+      const status = error.response.status
+      const detail = error.response.data?.detail || error.message
+      
+      if (status === 431) {
+        ElMessage.error('文件过大或请求头过大，请尝试使用较小的文件或分批上传')
+      } else if (status === 413) {
+        ElMessage.error('文件过大，请选择较小的文件（建议小于100MB）')
+      } else if (status === 400) {
+        ElMessage.error(`数据格式错误: ${detail}`)
+      } else {
+        ElMessage.error(`EM排序分析失败 (${status}): ${detail}`)
+      }
+    } else {
+      ElMessage.error('网络连接失败，请检查后端服务是否正常运行')
+    }
   } finally {
     emSortAnalysisLoading.value = false
   }
@@ -858,7 +892,24 @@ const startMultiDayAnalysis = async () => {
     
   } catch (error) {
     console.error('多天分析失败:', error)
-    ElMessage.error('多天分析失败: ' + (error.message || '未知错误'))
+    
+    // 处理特定的HTTP错误
+    if (error.response) {
+      const status = error.response.status
+      const detail = error.response.data?.detail || error.message
+      
+      if (status === 431) {
+        ElMessage.error('文件过大或请求头过大，请尝试使用较小的文件或分批上传')
+      } else if (status === 413) {
+        ElMessage.error('文件过大，请选择较小的文件（建议小于100MB）')
+      } else if (status === 400) {
+        ElMessage.error(`数据格式错误: ${detail}`)
+      } else {
+        ElMessage.error(`多天分析失败 (${status}): ${detail}`)
+      }
+    } else {
+      ElMessage.error('网络连接失败，请检查后端服务是否正常运行')
+    }
   } finally {
     multiDayAnalysisLoading.value = false
   }

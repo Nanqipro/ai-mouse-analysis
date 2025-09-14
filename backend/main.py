@@ -70,16 +70,40 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 class LimitUploadSizeMiddleware(BaseHTTPMiddleware):
-    def __init__(self, app, max_upload_size: int = 100 * 1024 * 1024):  # 100MB
+    def __init__(self, app, max_upload_size: int = 200 * 1024 * 1024):  # 200MB
         super().__init__(app)
         self.max_upload_size = max_upload_size
 
     async def dispatch(self, request: Request, call_next):
-        if request.method == "POST":
-            content_length = request.headers.get("content-length")
-            if content_length and int(content_length) > self.max_upload_size:
-                return Response("File too large", status_code=413)
-        return await call_next(request)
+        # 处理请求头大小问题
+        try:
+            if request.method == "POST":
+                content_length = request.headers.get("content-length")
+                if content_length and int(content_length) > self.max_upload_size:
+                    return Response(
+                        json.dumps({"detail": f"文件过大，最大允许 {self.max_upload_size // (1024 * 1024)}MB"}),
+                        status_code=413,
+                        headers={"content-type": "application/json"}
+                    )
+            
+            # 检查是否有过大的请求头
+            total_header_size = sum(len(k) + len(v) for k, v in request.headers.items())
+            if total_header_size > 32768:  # 32KB限制
+                return Response(
+                    json.dumps({"detail": "请求头过大，请减少文件大小或分批上传"}),
+                    status_code=431,
+                    headers={"content-type": "application/json"}
+                )
+                
+            return await call_next(request)
+            
+        except Exception as e:
+            print(f"中间件错误: {e}")
+            return Response(
+                json.dumps({"detail": f"请求处理失败: {str(e)}"}),
+                status_code=500,
+                headers={"content-type": "application/json"}
+            )
 
 app.add_middleware(LimitUploadSizeMiddleware)
 
@@ -1088,14 +1112,48 @@ async def download_file(filename: str):
 
 if __name__ == "__main__":
     import uvicorn
-    # 增加请求头大小限制，解决431错误
+    import os
+    
+    # 设置环境变量解决HTTP头部大小问题
+    os.environ['UVICORN_H11_MAX_INCOMPLETE_EVENT_SIZE'] = '65536'
+    
+    print("🚀 启动钙信号分析平台后端服务...")
+    print("📋 服务配置:")
+    print(f"   - 监听地址: 0.0.0.0:8000")
+    print(f"   - 请求头大小限制: 65536 bytes (64KB)")
+    print(f"   - 文件上传限制: 200MB")
+    print(f"   - 并发连接数: 2000")
+    print(f"   - 超时设置: 60秒")
+    
+    # 启动uvicorn服务器，使用优化的配置解决431错误
     uvicorn.run(
         app, 
         host="0.0.0.0", 
         port=8000,
-        limit_max_requests=1000,
-        limit_concurrency=1000,
-        timeout_keep_alive=30,
-        # 增加请求头大小限制到16KB
-        h11_max_incomplete_event_size=16384
+        # HTTP连接配置
+        limit_max_requests=2000,
+        limit_concurrency=2000,
+        timeout_keep_alive=60,
+        timeout_graceful_shutdown=60,
+        
+        # 增加请求头大小限制到64KB（解决431错误）
+        h11_max_incomplete_event_size=65536,
+        
+        # 工作进程配置
+        workers=1,
+        
+        # 日志配置
+        log_level="info",
+        access_log=True,
+        
+        # 重新加载配置（开发环境）
+        reload=False,  # 设为False避免开发时的重载问题
+        
+        # SSL配置（如果需要）
+        ssl_keyfile=None,
+        ssl_certfile=None,
+        
+        # 其他优化选项
+        loop="auto",
+        lifespan="on",
     )
