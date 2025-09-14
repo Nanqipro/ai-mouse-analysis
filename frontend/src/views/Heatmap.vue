@@ -33,12 +33,25 @@
                 行为分析参数
               </h3>
               
+              <el-alert
+                v-if="behaviorFileList.length === 0"
+                title="请先上传数据文件"
+                type="info"
+                :closable="false"
+                show-icon
+                style="margin-bottom: 15px;"
+              >
+                上传包含行为标签的数据文件后，系统将自动检测并提供可用的行为选项。
+              </el-alert>
+              
               <el-form :model="behaviorParams" label-width="120px" size="small">
                 <el-form-item label="起始行为">
                   <el-select
                     v-model="behaviorParams.start_behavior"
                     placeholder="选择起始行为"
                     style="width: 100%"
+                    :loading="behaviorLabelsLoading"
+                    :disabled="behaviorLabelsLoading"
                   >
                     <el-option
                       v-for="behavior in behaviorOptions"
@@ -47,7 +60,10 @@
                       :value="behavior.value"
                     />
                   </el-select>
-                  <div class="param-help">分析从此行为开始</div>
+                  <div class="param-help">
+                    <span v-if="behaviorLabelsLoading">正在从上传的数据中提取行为标签...</span>
+                    <span v-else>分析从此行为开始</span>
+                  </div>
                 </el-form-item>
                 
                 <el-form-item label="结束行为">
@@ -55,6 +71,8 @@
                     v-model="behaviorParams.end_behavior"
                     placeholder="选择结束行为"
                     style="width: 100%"
+                    :loading="behaviorLabelsLoading"
+                    :disabled="behaviorLabelsLoading"
                   >
                     <el-option
                       v-for="behavior in behaviorOptions"
@@ -63,7 +81,10 @@
                       :value="behavior.value"
                     />
                   </el-select>
-                  <div class="param-help">分析到此行为结束</div>
+                  <div class="param-help">
+                    <span v-if="behaviorLabelsLoading">正在从上传的数据中提取行为标签...</span>
+                    <span v-else>分析到此行为结束</span>
+                  </div>
                 </el-form-item>
                 
                 <el-form-item label="行为前时间">
@@ -119,9 +140,11 @@
                 :on-change="handleBehaviorFileChange"
                 :on-remove="handleBehaviorFileRemove"
                 :before-upload="() => false"
+                :file-list="behaviorFileList"
                 accept=".xlsx,.xls"
                 drag
                 :limit="1"
+                list-type="text"
               >
                 <el-icon class="el-icon--upload"><upload-filled /></el-icon>
                 <div class="el-upload__text">
@@ -133,6 +156,49 @@
                   </div>
                 </template>
               </el-upload>
+              
+              <!-- 文件状态显示 -->
+              <div v-if="behaviorFileList.length > 0" class="file-status-display">
+                <el-divider content-position="left">
+                  <el-icon><Document /></el-icon>
+                  已上传文件
+                </el-divider>
+                
+                <div v-for="(file, index) in behaviorFileList" :key="index" class="file-status-item">
+                  <div class="file-info">
+                    <div class="file-name">
+                      <el-icon><DocumentAdd /></el-icon>
+                      {{ file.name }}
+                    </div>
+                    <div class="file-size">
+                      {{ (file.size / 1024 / 1024).toFixed(2) }} MB
+                    </div>
+                  </div>
+                  
+                  <div class="behavior-detection-status">
+                    <div v-if="behaviorLabelsLoading" class="loading-status">
+                      <el-icon class="is-loading"><Loading /></el-icon>
+                      正在检测行为标签...
+                    </div>
+                    <div v-else-if="behaviorOptions.length > 0" class="success-status">
+                      <div class="detection-result">
+                        <el-icon><SuccessFilled /></el-icon>
+                        检测到 {{ behaviorOptions.length }} 种行为
+                      </div>
+                      <div v-if="behaviorParams.start_behavior && behaviorParams.end_behavior" class="selected-behaviors">
+                        <div class="selected-behavior-item">
+                          <span class="behavior-label">起始:</span>
+                          <span class="behavior-value">{{ behaviorParams.start_behavior }}</span>
+                        </div>
+                        <div class="selected-behavior-item">
+                          <span class="behavior-label">结束:</span>
+                          <span class="behavior-value">{{ behaviorParams.end_behavior }}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
             
             <!-- 分析控制区域 -->
@@ -588,14 +654,18 @@ import {
   DataAnalysis,
   VideoPlay,
   PictureRounded,
-  Calendar
+  Calendar,
+  Document,
+  DocumentAdd,
+  Loading,
+  SuccessFilled
 } from '@element-plus/icons-vue'
 
 // 响应式数据
 const activeTab = ref('behavior')
 
-// 行为选项
-const behaviorOptions = [
+// 默认行为选项（作为备用）
+const defaultBehaviorOptions = [
   { label: '破开种子壳', value: 'Crack-seeds-shells' },
   { label: '吃饲料', value: 'Eat-feed' },
   { label: '吃种子仁', value: 'Eat-seed-kernels' },
@@ -612,10 +682,13 @@ const behaviorOptions = [
   { label: '饮水', value: 'Water' }
 ]
 
+// 动态行为选项
+const behaviorOptions = ref([...defaultBehaviorOptions])
+
 // 行为序列热力图参数
 const behaviorParams = reactive({
-  start_behavior: 'Eat-seed-kernels',
-  end_behavior: 'Eat-seed-kernels',
+  start_behavior: '',
+  end_behavior: '',
   pre_behavior_time: 10.0,
   sampling_rate: 4.8,
   min_behavior_duration: 1.0
@@ -655,6 +728,7 @@ const multiDayLabels = ref([])
 const behaviorAnalysisLoading = ref(false)
 const emSortAnalysisLoading = ref(false)
 const multiDayAnalysisLoading = ref(false)
+const behaviorLabelsLoading = ref(false)
 
 // 分析结果
 const behaviorAnalysisResult = ref(null)
@@ -681,13 +755,86 @@ const currentResult = computed(() => {
   }
 })
 
+// 获取行为标签函数
+const fetchBehaviorLabels = async (file) => {
+  if (!file) return
+  
+  behaviorLabelsLoading.value = true
+  
+  try {
+    const formData = new FormData()
+    formData.append('file', file.raw || file)
+    
+    const response = await fetch('http://localhost:8000/api/heatmap/behaviors', {
+      method: 'POST',
+      body: formData
+    })
+    
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.detail || '获取行为标签失败')
+    }
+    
+    const result = await response.json()
+    
+    if (result.success && result.behaviors && result.behaviors.length > 0) {
+      // 更新行为选项为从数据中提取的标签
+      behaviorOptions.value = result.behaviors.map(behavior => ({
+        label: behavior,
+        value: behavior
+      }))
+      
+      // 自动选择第一个行为作为默认值，让用户可以立即开始分析
+      behaviorParams.start_behavior = result.behaviors[0]
+      behaviorParams.end_behavior = result.behaviors[0]
+      
+      ElMessage.success(`成功检测到 ${result.behaviors.length} 种行为标签，已自动选择"${result.behaviors[0]}"作为默认分析行为`)
+    } else {
+      // 如果没有找到行为标签，使用默认选项
+      behaviorOptions.value = [...defaultBehaviorOptions]
+      behaviorParams.start_behavior = 'Eat-seed-kernels'
+      behaviorParams.end_behavior = 'Eat-seed-kernels'
+      ElMessage.warning('未在数据中找到有效的行为标签，使用默认选项')
+    }
+    
+  } catch (error) {
+    console.error('获取行为标签失败:', error)
+    
+    // 出错时使用默认选项，并设置默认行为让用户可以继续操作
+    behaviorOptions.value = [...defaultBehaviorOptions]
+    behaviorParams.start_behavior = 'Eat-seed-kernels'
+    behaviorParams.end_behavior = 'Eat-seed-kernels'
+    
+    ElMessage.error(`获取行为标签失败: ${error.message}，已使用默认行为选项`)
+  } finally {
+    behaviorLabelsLoading.value = false
+  }
+}
+
 // 文件处理函数
-const handleBehaviorFileChange = (file, fileList) => {
+const handleBehaviorFileChange = async (file, fileList) => {
   behaviorFileList.value = fileList
+  
+  // 如果有文件上传，自动获取行为标签
+  if (fileList.length > 0 && fileList[0]) {
+    await fetchBehaviorLabels(fileList[0])
+  } else {
+    // 如果没有文件，恢复默认选项
+    behaviorOptions.value = [...defaultBehaviorOptions]
+    behaviorParams.start_behavior = 'Eat-seed-kernels'
+    behaviorParams.end_behavior = 'Eat-seed-kernels'
+  }
 }
 
 const handleBehaviorFileRemove = (file, fileList) => {
   behaviorFileList.value = fileList
+  
+  // 如果没有文件了，恢复默认选项
+  if (fileList.length === 0) {
+    behaviorOptions.value = [...defaultBehaviorOptions]
+    behaviorParams.start_behavior = 'Eat-seed-kernels'
+    behaviorParams.end_behavior = 'Eat-seed-kernels'
+  }
 }
 
 const handleEmSortFileChange = (file, fileList) => {
@@ -948,6 +1095,112 @@ const openSingleHeatmapModal = (imageUrl, title) => {
   color: #606266;
   margin-bottom: 5px;
   word-break: break-all;
+}
+
+/* 文件状态显示样式 */
+.file-status-display {
+  margin-top: 20px;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #e4e7ed;
+}
+
+.file-status-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  background-color: white;
+  border-radius: 6px;
+  margin-bottom: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.file-status-item:last-child {
+  margin-bottom: 0;
+}
+
+.file-info {
+  flex: 1;
+}
+
+.file-info .file-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #303133;
+  margin-bottom: 3px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.file-info .file-size {
+  font-size: 12px;
+  color: #909399;
+}
+
+.behavior-detection-status {
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.loading-status {
+  color: #409eff;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.success-status {
+  color: #67c23a;
+  font-size: 12px;
+}
+
+.detection-result {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.selected-behaviors {
+  margin-top: 6px;
+  font-size: 11px;
+}
+
+.selected-behavior-item {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+
+.behavior-label {
+  color: #909399;
+  font-weight: normal;
+}
+
+.behavior-value {
+  color: #303133;
+  font-weight: 500;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.is-loading {
+  animation: rotating 2s linear infinite;
+}
+
+@keyframes rotating {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .heatmap-gallery {

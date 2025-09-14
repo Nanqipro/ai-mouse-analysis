@@ -656,6 +656,76 @@ async def detect_behavior_events(
             temp_file.unlink()
         raise HTTPException(status_code=500, detail=f"行为事件检测失败: {str(e)}")
 
+@app.post("/api/heatmap/behaviors")
+async def extract_behavior_labels(
+    file: UploadFile = File(...)
+):
+    """
+    提取上传文件中behavior列的唯一行为标签
+    
+    Parameters
+    ----------
+    file : UploadFile
+        包含行为数据的Excel文件
+        
+    Returns
+    -------
+    dict
+        包含behavior列唯一值的响应数据
+    """
+    try:
+        # 保存上传的文件
+        temp_file = TEMP_DIR / f"extract_behaviors_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{file.filename}"
+        with open(temp_file, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        print(f"提取行为标签，文件: {temp_file}")
+        
+        # 加载数据
+        data = load_and_validate_data(str(temp_file))
+        print(f"数据加载成功，形状: {data.shape}")
+        
+        # 检查是否有behavior列
+        if 'behavior' not in data.columns:
+            # 清理临时文件
+            temp_file.unlink()
+            raise HTTPException(
+                status_code=400, 
+                detail="数据文件缺少behavior列。请确保上传的文件包含行为标签数据。"
+            )
+        
+        # 获取所有唯一的行为类型（去除空值和'Unknown'）
+        unique_behaviors = data['behavior'].dropna().unique()
+        unique_behaviors = [behavior for behavior in unique_behaviors if behavior != 'Unknown' and str(behavior).strip()]
+        
+        # 按字母顺序排序
+        unique_behaviors = sorted(unique_behaviors)
+        
+        print(f"发现的行为类型: {unique_behaviors}")
+        
+        # 清理临时文件
+        temp_file.unlink()
+        
+        return {
+            "success": True,
+            "behaviors": unique_behaviors,
+            "total_behaviors": len(unique_behaviors),
+            "filename": file.filename,
+            "message": f"成功提取到 {len(unique_behaviors)} 种行为标签"
+        }
+        
+    except Exception as e:
+        print(f"提取行为标签错误: {e}")
+        # 清理临时文件
+        if 'temp_file' in locals() and temp_file.exists():
+            temp_file.unlink()
+        
+        # 如果是HTTPException，直接重新抛出
+        if isinstance(e, HTTPException):
+            raise e
+        
+        raise HTTPException(status_code=500, detail=f"提取行为标签失败: {str(e)}")
+
 @app.post("/api/heatmap/analyze")
 async def heatmap_analysis(
     file: UploadFile = File(...),
