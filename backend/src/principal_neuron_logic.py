@@ -83,49 +83,14 @@ class PrincipalNeuronAnalyzer:
                 top_n=10
             )
             
-            # 转换numpy数组为列表以便JSON序列化
-            serializable_effect_sizes = {}
-            for behavior, effect_array in results['effect_sizes'].items():
-                if isinstance(effect_array, np.ndarray):
-                    serializable_effect_sizes[behavior] = effect_array.tolist()
-                else:
-                    serializable_effect_sizes[behavior] = effect_array
-            
-            # 转换key_neurons为可序列化格式
-            serializable_key_neurons = {}
-            for behavior, neurons in key_neurons.items():
-                if isinstance(neurons, dict):
-                    serializable_key_neurons[behavior] = {
-                        'neuron_ids': neurons.get('neuron_ids', []),
-                        'effect_sizes': [float(x) if isinstance(x, (np.floating, np.integer)) else x 
-                                       for x in neurons.get('effect_sizes', [])]
-                    }
-                else:
-                    serializable_key_neurons[behavior] = neurons
-            
-            # 转换top_neurons为可序列化格式
-            serializable_top_neurons = {}
-            for behavior, neurons in top_neurons.items():
-                if isinstance(neurons, dict):
-                    serializable_top_neurons[behavior] = {
-                        'neuron_ids': neurons.get('neuron_ids', []),
-                        'effect_sizes': [float(x) if isinstance(x, (np.floating, np.integer)) else x 
-                                       for x in neurons.get('effect_sizes', [])]
-                    }
-                else:
-                    serializable_top_neurons[behavior] = neurons
-            
             return {
                 'success': True,
-                'total_neurons': len(serializable_effect_sizes.get(list(serializable_effect_sizes.keys())[0], [])) if serializable_effect_sizes else 0,
-                'significant_neurons': sum(len(neurons.get('neuron_ids', [])) for neurons in serializable_key_neurons.values()),
-                'behavior_labels': list(results['behavior_labels']) if hasattr(results['behavior_labels'], '__iter__') else results['behavior_labels'],
-                'key_neurons': serializable_key_neurons,
-                'top_neurons': serializable_top_neurons,
-                'threshold': float(EFFECT_SIZE_THRESHOLD),
-                'mean_effect_size': float(np.mean([np.mean(arr) for arr in results['effect_sizes'].values()])) if results['effect_sizes'] else 0.0,
-                'max_effect_size': float(np.max([np.max(arr) for arr in results['effect_sizes'].values()])) if results['effect_sizes'] else 0.0,
-                'csv_path': results.get('output_files', {}).get('csv_path', '')
+                'effect_sizes': results['effect_sizes'],
+                'behavior_labels': results['behavior_labels'],
+                'key_neurons': key_neurons,
+                'top_neurons': top_neurons,
+                'threshold': EFFECT_SIZE_THRESHOLD,
+                'output_files': results.get('output_files', {})
             }
             
         except Exception as e:

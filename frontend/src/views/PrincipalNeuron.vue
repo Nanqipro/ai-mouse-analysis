@@ -297,7 +297,7 @@ export default {
       return Object.values(results).some(val => val !== null)
     })
     
-    const handleFileChange = (file, newFileList) => {
+    const handleFileChange = (file, fileList) => {
       // 验证文件类型
       const allowedTypes = ['.csv', '.xlsx', '.xls']
       const fileExtension = '.' + file.name.split('.').pop().toLowerCase()
@@ -312,10 +312,6 @@ export default {
         ElMessage.error('文件大小不能超过 50MB')
         return false
       }
-      
-      // 更新文件列表
-      fileList.value = newFileList
-      ElMessage.success(`已添加文件: ${file.name}`)
     }
     
     const runEffectSizeAnalysis = async () => {

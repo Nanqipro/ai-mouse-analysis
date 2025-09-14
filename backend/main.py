@@ -1207,52 +1207,68 @@ async def principal_neuron_analysis(
         
         raise HTTPException(status_code=500, detail=f"分析过程中发生错误: {str(e)}")
 
-@app.post("/api/principal-neuron/effect-size")
+@app.post("/api/principal-neuron/effect-sizes")
 async def analyze_effect_sizes(
-    files: List[UploadFile] = File(...),
-    effect_size_threshold: float = Form(0.5),
-    significance_threshold: float = Form(0.05)
+    data_file: UploadFile = File(...),
+    positions_file: UploadFile = File(None)
 ):
     """
     计算神经元效应量
     """
     try:
-        if not files:
-            raise HTTPException(status_code=400, detail="请上传至少一个数据文件")
-        
-        # 保存第一个文件用于分析
-        data_file = files[0]
-        data_temp_path = TEMP_DIR / f"pn_effect_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{data_file.filename}"
+        # 保存数据文件
+        data_temp_path = TEMP_DIR / f"pn_effect_data_{data_file.filename}"
         with open(data_temp_path, "wb") as buffer:
             shutil.copyfileobj(data_file.file, buffer)
+        
+        positions_temp_path = None
+        if positions_file:
+            positions_temp_path = TEMP_DIR / f"pn_effect_positions_{positions_file.filename}"
+            with open(positions_temp_path, "wb") as buffer:
+                shutil.copyfileobj(positions_file.file, buffer)
         
         # 执行效应量分析
         result = principal_analyzer.analyze_effect_sizes(
             str(data_temp_path), 
-            None  # positions_file暂时不使用
+            str(positions_temp_path) if positions_temp_path else None
         )
         
         # 清理临时文件
         data_temp_path.unlink(missing_ok=True)
+        if positions_temp_path:
+            positions_temp_path.unlink(missing_ok=True)
         
-        # 添加阈值信息
-        if isinstance(result, dict):
-            result['effect_size_threshold'] = effect_size_threshold
-            result['significance_threshold'] = significance_threshold
-        
-        return result
+        if result['success']:
+            # 转换numpy数组为列表以便JSON序列化
+            serializable_result = {
+                'success': result['success'],
+                'behavior_labels': result['behavior_labels'],
+                'key_neurons': result['key_neurons'],
+                'top_neurons': result['top_neurons'],
+                'threshold': result['threshold']
+            }
+            
+            return {
+                "success": True,
+                "message": "效应量分析完成",
+                "data": serializable_result
+            }
+        else:
+            raise HTTPException(status_code=500, detail=result.get('error', '效应量分析失败'))
             
     except Exception as e:
         # 清理临时文件
-        if 'data_temp_path' in locals() and data_temp_path.exists():
+        if 'data_temp_path' in locals():
             data_temp_path.unlink(missing_ok=True)
+        if 'positions_temp_path' in locals():
+            positions_temp_path.unlink(missing_ok=True)
         
         raise HTTPException(status_code=500, detail=f"效应量分析过程中发生错误: {str(e)}")
 
-@app.post("/api/principal-neuron/activity-plot")
+@app.post("/api/principal-neuron/activity-maps")
 async def generate_activity_maps(
-    files: List[UploadFile] = File(...),
-    effect_size_threshold: float = Form(0.5)
+    data_file: UploadFile = File(...),
+    positions_file: UploadFile = File(...)
 ):
     """
     生成神经元活动图
@@ -1296,10 +1312,10 @@ async def generate_activity_maps(
         
         raise HTTPException(status_code=500, detail=f"活动图生成过程中发生错误: {str(e)}")
 
-@app.post("/api/principal-neuron/shared-neurons")
+@app.post("/api/principal-neuron/shared-analysis")
 async def analyze_shared_neurons(
-    files: List[UploadFile] = File(...),
-    effect_size_threshold: float = Form(0.5)
+    data_file: UploadFile = File(...),
+    positions_file: UploadFile = File(...)
 ):
     """
     分析行为间的共享神经元
@@ -1343,11 +1359,10 @@ async def analyze_shared_neurons(
         
         raise HTTPException(status_code=500, detail=f"共享神经元分析过程中发生错误: {str(e)}")
 
-@app.post("/api/principal-neuron/animation")
+@app.post("/api/principal-neuron/animation-data")
 async def get_animation_data(
-    files: List[UploadFile] = File(...),
-    frames: int = Form(50),
-    interval: int = Form(200)
+    data_file: UploadFile = File(...),
+    positions_file: UploadFile = File(...)
 ):
     """
     获取神经元动画数据
