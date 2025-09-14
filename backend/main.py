@@ -70,40 +70,16 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 class LimitUploadSizeMiddleware(BaseHTTPMiddleware):
-    def __init__(self, app, max_upload_size: int = 200 * 1024 * 1024):  # 200MB
+    def __init__(self, app, max_upload_size: int = 100 * 1024 * 1024):  # 100MB
         super().__init__(app)
         self.max_upload_size = max_upload_size
 
     async def dispatch(self, request: Request, call_next):
-        # 处理请求头大小问题
-        try:
-            if request.method == "POST":
-                content_length = request.headers.get("content-length")
-                if content_length and int(content_length) > self.max_upload_size:
-                    return Response(
-                        json.dumps({"detail": f"文件过大，最大允许 {self.max_upload_size // (1024 * 1024)}MB"}),
-                        status_code=413,
-                        headers={"content-type": "application/json"}
-                    )
-            
-            # 检查是否有过大的请求头
-            total_header_size = sum(len(k) + len(v) for k, v in request.headers.items())
-            if total_header_size > 32768:  # 32KB限制
-                return Response(
-                    json.dumps({"detail": "请求头过大，请减少文件大小或分批上传"}),
-                    status_code=431,
-                    headers={"content-type": "application/json"}
-                )
-                
-            return await call_next(request)
-            
-        except Exception as e:
-            print(f"中间件错误: {e}")
-            return Response(
-                json.dumps({"detail": f"请求处理失败: {str(e)}"}),
-                status_code=500,
-                headers={"content-type": "application/json"}
-            )
+        if request.method == "POST":
+            content_length = request.headers.get("content-length")
+            if content_length and int(content_length) > self.max_upload_size:
+                return Response("File too large", status_code=413)
+        return await call_next(request)
 
 app.add_middleware(LimitUploadSizeMiddleware)
 
@@ -1120,12 +1096,6 @@ if __name__ == "__main__":
         limit_max_requests=1000,
         limit_concurrency=1000,
         timeout_keep_alive=30,
-        # 增加请求头大小限制到32KB
-        h11_max_incomplete_event_size=32768,
-        # 增加最大请求大小限制
-        limit_max_requests=2000,
-        # 设置HTTP超时
-        timeout_graceful_shutdown=60,
-        # 启用更多的工作进程处理能力
-        workers=1
+        # 增加请求头大小限制到16KB
+        h11_max_incomplete_event_size=16384
     )

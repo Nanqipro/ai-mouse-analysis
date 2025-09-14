@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "NODE_OPTIONS='--max-http-header-size=32768' vite",
+    "dev": "vite",
     "build": "vite build",
     "preview": "vite preview"
   },
