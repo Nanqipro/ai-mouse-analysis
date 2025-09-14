@@ -5,7 +5,7 @@
       <el-header class="header">
         <div class="header-content">
           <div class="logo">
-            <el-icon class="logo-icon"><Monitor /></el-icon>
+            <img src="/logo.png" alt="GOODLAB" class="logo-image" />
             <span class="logo-text">钙信号分析平台</span>
           </div>
           <el-menu
@@ -42,7 +42,7 @@
       <!-- 底部 -->
       <el-footer class="footer">
         <div class="footer-content">
-          <p>&copy; 2024 钙信号分析平台. 专为神经科学研究设计.</p>
+          <p>&copy; GOODLAB小鼠脑神经分析小组出品</p>
         </div>
       </el-footer>
     </el-container>
@@ -82,9 +82,11 @@ import { Monitor, House, DataAnalysis, PieChart, TrendCharts } from '@element-pl
   font-weight: bold;
 }
 
-.logo-icon {
-  font-size: 28px;
+.logo-image {
+  height: 32px;
+  width: 32px;
   margin-right: 10px;
+  object-fit: contain;
 }
 
 .logo-text {

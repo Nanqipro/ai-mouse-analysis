@@ -595,34 +595,71 @@
         
         <!-- 组合热力图 -->
         <div v-if="multiDayAnalysisResult.combination_heatmap" class="combination-heatmap">
-          <h4>多天组合热力图</h4>
-          <div class="heatmap-container">
+          <div class="section-header-combo">
+            <el-icon><DataBoard /></el-icon>
+            <h4>多天组合热力图 (多子图并排显示)</h4>
+          </div>
+          <div class="heatmap-container-combo">
             <img 
               :src="multiDayAnalysisResult.combination_heatmap.image" 
               alt="多天组合热力图" 
               class="combination-heatmap-image" 
               @click="openSingleHeatmapModal(multiDayAnalysisResult.combination_heatmap.image, '多天组合热力图')"
             />
+            <div class="combo-description">
+              <p><strong>组合热力图特点：</strong></p>
+              <ul>
+                <li>📊 多天数据并排对比</li>
+                <li>🔄 统一的神经元排序</li>
+                <li>🎯 便于跨天比较</li>
+              </ul>
+            </div>
           </div>
         </div>
         
         <!-- 单独热力图 -->
         <div v-if="multiDayAnalysisResult.individual_heatmaps && multiDayAnalysisResult.individual_heatmaps.length > 0" class="individual-heatmaps">
-          <h4>单独热力图</h4>
-          <el-row :gutter="10">
+          <div class="section-header-individual">
+            <el-icon><PictureRounded /></el-icon>
+            <h4>单独热力图 (每天独立显示)</h4>
+          </div>
+          <div class="individual-description">
+            <p><strong>单独热力图特点：</strong></p>
+            <ul>
+              <li>🔍 每天独立详细展示</li>
+              <li>📈 各自数据的独立排序</li>
+              <li>🎨 清晰的单日模式</li>
+              <li>🔄 根据自身特点排序</li>
+            </ul>
+          </div>
+          <el-row :gutter="15">
             <el-col
               v-for="(heatmap, index) in multiDayAnalysisResult.individual_heatmaps"
               :key="index"
               :xs="24" :sm="12" :md="8"
             >
               <div class="individual-heatmap-item">
+                <div class="item-header">
+                  <el-icon><Calendar /></el-icon>
+                  <span class="day-label">{{ heatmap.day.toUpperCase() }}</span>
+                </div>
                 <img 
                   :src="heatmap.image" 
                   :alt="heatmap.day + '热力图'" 
                   class="individual-heatmap-image" 
                   @click="openSingleHeatmapModal(heatmap.image, heatmap.day + '热力图')"
                 />
-                <div class="heatmap-title">{{ heatmap.day.toUpperCase() }}</div>
+                <div class="item-info">
+                  <div class="info-item">
+                    <span>神经元: {{ heatmap.info.total_neurons }}</span>
+                  </div>
+                  <div class="info-item">
+                    <span>CD1事件: {{ heatmap.info.cd1_events_count }}</span>
+                  </div>
+                  <div class="info-item">
+                    <span>排序: {{ heatmap.info.sort_method }}</span>
+                  </div>
+                </div>
               </div>
             </el-col>
           </el-row>
@@ -670,7 +707,8 @@ import {
   Document,
   DocumentAdd,
   Loading,
-  SuccessFilled
+  SuccessFilled,
+  DataBoard
 } from '@element-plus/icons-vue'
 
 // 响应式数据
@@ -1302,25 +1340,167 @@ const openSingleHeatmapModal = (imageUrl, title) => {
   transform: scale(1.02);
 }
 
+/* 组合热力图样式增强 */
+.section-header-combo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 15px;
+  padding: 15px;
+  background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+  border-left: 5px solid #2196f3;
+  border-radius: 8px;
+}
+
+.section-header-combo h4 {
+  margin: 0;
+  color: #1565c0;
+  font-weight: 600;
+}
+
+.heatmap-container-combo {
+  background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+  border: 2px solid #2196f3;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.combo-description {
+  margin-top: 15px;
+  padding: 15px;
+  background: #fff;
+  border-radius: 8px;
+  border-left: 4px solid #2196f3;
+}
+
+.combo-description p {
+  margin: 0 0 10px 0;
+  color: #1565c0;
+  font-size: 16px;
+}
+
+.combo-description ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.combo-description li {
+  margin-bottom: 5px;
+  color: #424242;
+  font-size: 14px;
+}
+
+/* 单独热力图样式增强 */
+.section-header-individual {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 15px;
+  padding: 15px;
+  background: linear-gradient(135deg, #e8f5e8, #c8e6c9);
+  border-left: 5px solid #4caf50;
+  border-radius: 8px;
+}
+
+.section-header-individual h4 {
+  margin: 0;
+  color: #2e7d32;
+  font-weight: 600;
+}
+
+.individual-description {
+  margin-bottom: 20px;
+  padding: 15px;
+  background: #fff;
+  border-radius: 8px;
+  border-left: 4px solid #4caf50;
+}
+
+.individual-description p {
+  margin: 0 0 10px 0;
+  color: #2e7d32;
+  font-size: 16px;
+}
+
+.individual-description ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.individual-description li {
+  margin-bottom: 5px;
+  color: #424242;
+  font-size: 14px;
+}
+
 .individual-heatmaps {
   margin-top: 20px;
 }
 
 .individual-heatmap-item {
-  margin-bottom: 15px;
-  text-align: center;
+  margin-bottom: 20px;
+  background: #fff;
+  border: 2px solid #4caf50;
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.1);
+}
+
+.individual-heatmap-item:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 25px rgba(76, 175, 80, 0.2);
+}
+
+.item-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 15px;
+  background: linear-gradient(135deg, #4caf50, #66bb6a);
+  color: white;
+  font-weight: 600;
+}
+
+.day-label {
+  font-size: 16px;
+  letter-spacing: 1px;
 }
 
 .individual-heatmap-image {
   width: 100%;
   height: auto;
-  border-radius: 6px;
-  cursor: pointer;
+  display: block;
   transition: transform 0.3s ease;
 }
 
 .individual-heatmap-image:hover {
-  transform: scale(1.05);
+  transform: scale(1.02);
+}
+
+.item-info {
+  padding: 12px 15px;
+  background: #f8f9fa;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  color: #666;
+  font-weight: 500;
+  flex: 1;
+  min-width: 80px;
+  justify-content: center;
+  padding: 4px 8px;
+  background: #fff;
+  border-radius: 4px;
+  border: 1px solid #e0e0e0;
 }
 
 .modal-heatmap-container {

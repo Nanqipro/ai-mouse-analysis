@@ -451,11 +451,28 @@ def generate_em_sort_heatmap(neural_data: pd.DataFrame,
             # 创建图例补丁
             legend_patches.append(plt.Rectangle((0, 0), 1, 1, color=behavior_color, alpha=0.9, label=behavior))
         
-        # 设置行为子图
+        # 再次确认两个坐标轴的对齐情况
+        # 唯一正确的做法是设置完全相同的范围
+        ax_heatmap.set_xlim(-0.5, len(sorted_data.index) - 0.5)
+        ax_behavior.set_xlim(-0.5, len(sorted_data.index) - 0.5)
+        
+        # 设置行为子图的Y轴范围，只显示一条线
         ax_behavior.set_ylim(0, 1)
+        
+        # 移除Y轴刻度和标签
         ax_behavior.set_yticks([])
+        ax_behavior.set_yticklabels([])
+        
+        # 特别重要：移除X轴刻度，让它只在热图上显示
         ax_behavior.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
         ax_behavior.set_title('Behavior Timeline', fontsize=40, pad=10)
+        ax_behavior.set_xlabel('')  # Remove x-axis label, shared with the heatmap below
+
+        # 更强制地隐藏X轴刻度和标签
+        ax_behavior.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
+        # 确保行为图和热图水平对齐
+        ax_behavior.set_anchor('SW')
+        # 去除行为子图边框
         ax_behavior.spines['top'].set_visible(False)
         ax_behavior.spines['right'].set_visible(False)
         ax_behavior.spines['bottom'].set_visible(False)
@@ -510,7 +527,32 @@ def generate_em_sort_heatmap(neural_data: pd.DataFrame,
         ax_heatmap.set_xticks(xtick_positions)
         ax_heatmap.set_xticklabels(xtick_labels, fontsize=30, fontweight='bold', rotation=45)
     
-    plt.tight_layout()
+    # 在保存前使用多重方法确保对齐
+    if behavior_intervals:
+        # 1. 强制更新布局
+        fig.canvas.draw()
+        
+        # 2. 再次确认轴范围一致
+        ax_heatmap.set_xlim(-0.5, len(sorted_data.index) - 0.5)
+        ax_behavior.set_xlim(-0.5, len(sorted_data.index) - 0.5)
+        
+        # 3. 达到更精确的对齐
+        # 获取热图的实际边界位置（像素单位）
+        heatmap_bbox = ax_heatmap.get_position()
+        behavior_bbox = ax_behavior.get_position()
+        
+        # 不能直接修改Bbox对象，需要创建新的
+        # 使用Bbox的坐标创建新的位置，保持高度不变，但使用热图的宽度和水平位置
+        from matplotlib.transforms import Bbox
+        new_behavior_pos = Bbox([[heatmap_bbox.x0, behavior_bbox.y0], 
+                                [heatmap_bbox.x0 + heatmap_bbox.width, behavior_bbox.y0 + behavior_bbox.height]])
+        
+        # 设置新的位置
+        ax_behavior.set_position(new_behavior_pos)
+    
+    # 应用紧凑布局
+    # 不使用tight_layout()，因为它与GridSpec布局不兼容
+    # 而是使用之前设置的subplots_adjust()已经足够调整布局
     
     # 生成分析信息
     info = {

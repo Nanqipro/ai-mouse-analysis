@@ -58,8 +58,8 @@ class MultiDayHeatmapConfig:
     vmin: float = -2.0
     vmax: float = 2.0
     colormap: str = 'viridis'
-    figure_size_combo: Tuple[int, int] = (45, 10)
-    figure_size_single: Tuple[int, int] = (15, 10)
+    figure_size_combo: Tuple[int, int] = (60, 15)  # 更大的组合图，增强视觉区分
+    figure_size_single: Tuple[int, int] = (18, 12)  # 稍大的单独图
 
 
 def detect_first_calcium_wave_multiday(neuron_data: pd.Series, config: MultiDayHeatmapConfig) -> float:
@@ -343,10 +343,14 @@ def create_multiday_combination_heatmap(multiday_data: Dict[str, pd.DataFrame],
         sorted_neurons = calculate_sorting_for_multiday(multiday_data[first_day], config)
         reference_day = first_day
     
-    # 创建组合图形
+    # 创建组合图形，增强视觉区分
     fig, axes = plt.subplots(1, len(available_days), figsize=config.figure_size_combo)
     if len(available_days) == 1:
         axes = [axes]
+    
+    # 设置整体标题，突出这是组合图
+    fig.suptitle(f'Multi-Day Combination Heatmap ({len(available_days)} Days)', 
+                fontsize=35, fontweight='bold', y=0.98)
     
     cd1_events_info = {}
     
@@ -371,20 +375,26 @@ def create_multiday_combination_heatmap(multiday_data: Dict[str, pd.DataFrame],
             ax=axes[i]
         )
         
-        # 设置标题和标签
+        # 设置标题和标签，增强视觉区分
         if day == reference_day:
             sort_method_str = "peak time" if config.sort_method == 'peak' else "calcium wave time"
-            title = f'{day.upper()} (Sorted by {sort_method_str})'
+            title = f'{day.upper()}\n(Reference: {sort_method_str})'
         else:
-            title = f'{day.upper()} (Using {reference_day.upper()} order)'
+            title = f'{day.upper()}\n(Order: {reference_day.upper()})'
         
-        axes[i].set_title(title, fontsize=25)
-        axes[i].set_xlabel('Stamp', fontsize=25)
+        axes[i].set_title(title, fontsize=28, fontweight='bold', 
+                         bbox=dict(boxstyle="round,pad=0.3", facecolor="lightblue", alpha=0.7))
+        axes[i].set_xlabel('Time Stamp', fontsize=22)
         
         if i == 0:
-            axes[i].set_ylabel('Neuron', fontsize=25)
+            axes[i].set_ylabel('Neuron ID', fontsize=22)
         else:
             axes[i].set_ylabel('')
+        
+        # 添加子图边框，增强区分
+        for spine in axes[i].spines.values():
+            spine.set_linewidth(3)
+            spine.set_edgecolor('navy')
         
         # 标记CD1行为事件
         cd1_events = extract_cd1_behavior_events(behavior_data.get(day))
@@ -395,9 +405,10 @@ def create_multiday_combination_heatmap(multiday_data: Dict[str, pd.DataFrame],
                 if cd1_time in sorted_day_data.index:
                     position = sorted_day_data.index.get_loc(cd1_time)
                     axes[i].axvline(x=position, color='white', linestyle='--', linewidth=2)
-                    axes[i].text(position + 0.5, -5, 'CD1', 
-                               color='black', rotation=90, verticalalignment='top', 
-                               fontsize=20, fontweight='bold')
+                    axes[i].text(position + 0.5, -3, 'CD1', 
+                               color='white', rotation=90, verticalalignment='top', 
+                               fontsize=18, fontweight='bold',
+                               bbox=dict(boxstyle="round,pad=0.2", facecolor="red", alpha=0.8))
     
     plt.tight_layout()
     
@@ -468,8 +479,11 @@ def create_single_day_heatmap(data: pd.DataFrame,
     else:
         sorted_data = neural_data_standardized
     
-    # 创建图形
+    # 创建图形，突出这是单独图
     fig, ax = plt.subplots(figsize=config.figure_size_single)
+    
+    # 设置整体标题，突出这是单独图
+    fig.suptitle(f'Individual Day Heatmap', fontsize=30, fontweight='bold', y=0.95)
     
     # 绘制热力图
     sns.heatmap(
@@ -481,15 +495,21 @@ def create_single_day_heatmap(data: pd.DataFrame,
         ax=ax
     )
     
-    # 设置标题和标签
+    # 设置标题和标签，突出单独图特征
     if neuron_order is not None:
-        title = f'{day_name.upper()} (Ordered by reference + Remaining by Neuron ID)'
+        title = f'{day_name.upper()}\n(Individual {config.sort_method.title()} Sort)'
     else:
-        title = f'{day_name.upper()}'
+        title = f'{day_name.upper()}\n(Default Order)'
     
-    ax.set_title(title, fontsize=25)
-    ax.set_xlabel('Stamp', fontsize=25)
-    ax.set_ylabel('Neuron', fontsize=25)
+    ax.set_title(title, fontsize=28, fontweight='bold',
+                bbox=dict(boxstyle="round,pad=0.3", facecolor="lightgreen", alpha=0.7))
+    ax.set_xlabel('Time Stamp', fontsize=22)
+    ax.set_ylabel('Neuron ID', fontsize=22)
+    
+    # 添加边框，增强单独图的视觉特征
+    for spine in ax.spines.values():
+        spine.set_linewidth(3)
+        spine.set_edgecolor('darkgreen')
     
     # 添加分割线（如果有分割信息）
     if separation_info and neuron_order is not None:
@@ -515,9 +535,10 @@ def create_single_day_heatmap(data: pd.DataFrame,
             if cd1_time in sorted_data.index:
                 position = sorted_data.index.get_loc(cd1_time)
                 ax.axvline(x=position, color='white', linestyle='--', linewidth=2)
-                ax.text(position + 0.5, -5, 'CD1', 
-                       color='black', rotation=90, verticalalignment='top', 
-                       fontsize=20, fontweight='bold')
+                ax.text(position + 0.5, -3, 'CD1', 
+                       color='white', rotation=90, verticalalignment='top', 
+                       fontsize=18, fontweight='bold',
+                       bbox=dict(boxstyle="round,pad=0.2", facecolor="red", alpha=0.8))
     
     plt.tight_layout()
     
@@ -527,6 +548,7 @@ def create_single_day_heatmap(data: pd.DataFrame,
         'total_neurons': len(sorted_data.columns),
         'cd1_events_count': len(cd1_events),
         'has_neuron_order': neuron_order is not None,
+        'sort_method': config.sort_method if neuron_order is not None else 'default',
         'separation_applied': separation_info is not None and neuron_order is not None
     }
     
@@ -582,23 +604,15 @@ def analyze_multiday_heatmap(data_dict: Dict[str, pd.DataFrame],
              # 组合热力图创建失败
              pass
     
-    # 创建单独热力图
+    # 创建单独热力图（使用各自数据的独立排序）
     if create_individual:
-        reference_order = None
-        
-        # 如果有参考天数，计算参考排序
-        if available_days:
-            try:
-                reference_day = available_days[0]
-                reference_order = calculate_sorting_for_multiday(data_dict[reference_day], config)
-            except Exception as e:
-                 # 参考排序计算失败
-                 pass
-        
         for day, data in data_dict.items():
             try:
+                # 为每一天计算独立的排序顺序
+                individual_order = calculate_sorting_for_multiday(data, config)
+                
                 fig, info = create_single_day_heatmap(
-                    data, day, config, reference_order
+                    data, day, config, individual_order
                 )
                 results['individual_heatmaps'][day] = {
                     'figure': fig,

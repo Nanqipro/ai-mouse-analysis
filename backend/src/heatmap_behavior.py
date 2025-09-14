@@ -1098,14 +1098,14 @@ def main():
             global_neuron_order = get_global_neuron_order(data)
             # 全局排序完成
         elif config.SORTING_METHOD == 'custom':
-             # 使用自定义神经元排序模式
-             pass
-         elif config.SORTING_METHOD == 'first':
-             # 使用首图排序模式
-             pass
-         else:
-             # 使用局部排序模式
-             pass
+            # 使用自定义神经元排序模式
+            pass
+        elif config.SORTING_METHOD == 'first':
+            # 使用首图排序模式
+            pass
+        else:
+            # 使用局部排序模式
+            pass
         
         # 查找连续行为配对
         # 查找行为配对
