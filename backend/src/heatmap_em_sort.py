@@ -515,16 +515,16 @@ def generate_em_sort_heatmap(neural_data: pd.DataFrame,
     # 生成分析信息
     info = {
         'sort_method': config.sort_method,
-        'total_neurons': len(sorted_neurons),
+        'total_neurons': int(len(sorted_neurons)),
         'time_range': {
-            'start_stamp': min_stamp,
-            'end_stamp': max_stamp,
-            'start_seconds': min_seconds,
-            'end_seconds': max_seconds,
-            'duration_seconds': max_seconds - min_seconds
+            'start_stamp': float(min_stamp),
+            'end_stamp': float(max_stamp),
+            'start_seconds': float(min_seconds),
+            'end_seconds': float(max_seconds),
+            'duration_seconds': float(max_seconds - min_seconds)
         },
         'behavior_types': list(behavior_intervals.keys()) if behavior_intervals else [],
-        'total_behavior_events': sum(len(intervals) for intervals in behavior_intervals.values()) if behavior_intervals else 0
+        'total_behavior_events': int(sum(len(intervals) for intervals in behavior_intervals.values()) if behavior_intervals else 0)
     }
     
     return fig, info

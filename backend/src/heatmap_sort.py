@@ -265,4 +265,4 @@ plt.savefig(output_filename, bbox_inches='tight', pad_inches=0.1, dpi=100)
 plt.close()
 
 # 输出保存信息
-print(f"热图已保存至: {output_filename}")
+# 热图已保存

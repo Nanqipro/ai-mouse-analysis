@@ -3,7 +3,7 @@ import { ElMessage } from 'element-plus'
 
 // 创建axios实例
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: 'http://localhost:8000/api',
   timeout: 300000, // 5分钟超时，因为分析可能需要较长时间
   maxContentLength: 100 * 1024 * 1024, // 100MB
   maxBodyLength: 100 * 1024 * 1024, // 100MB

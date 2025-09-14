@@ -30,9 +30,9 @@ def load_data(file_path):
     df : pandas.DataFrame
         加载的数据
     """
-    print(f"正在从{file_path}加载数据...")
+    # 正在从文件加载数据
     df = pd.read_excel(file_path)
-    print(f"成功加载数据，共{len(df)}行")
+    # 成功加载数据
     return df
 
 def enhance_preprocess_data(df, feature_weights=None):
@@ -95,11 +95,12 @@ def enhance_preprocess_data(df, feature_weights=None):
         
         # 应用权重
         features_scaled = features_scaled * weights_array.reshape(1, -1)
-        print(f"应用特征权重: {', '.join(weight_info)}")
+        # 应用特征权重
     else:
-        print("未设置特征权重，所有特征权重相等")
+         # 未设置特征权重，所有特征权重相等
+         pass
     
-    print(f"预处理完成，保留{len(df_clean)}个有效样本，使用特征: {', '.join(feature_names)}")
+    # 预处理完成
     return features_scaled, feature_names, df_clean
 
 def cluster_kmeans(features_scaled, n_clusters):
@@ -118,11 +119,11 @@ def cluster_kmeans(features_scaled, n_clusters):
     labels : numpy.ndarray
         每个样本的聚类标签
     """
-    print(f"开始K-Means聚类，K={n_clusters}...")
+    # 开始K-Means聚类
     kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
     kmeans.fit(features_scaled)
     labels = kmeans.labels_
-    print("K-Means聚类完成")
+    # K-Means聚类完成
     return labels
 
 def visualize_clusters_2d(features_scaled, labels, feature_names, method='pca', output_dir='../results'):
@@ -147,7 +148,7 @@ def visualize_clusters_2d(features_scaled, labels, feature_names, method='pca', 
     fig : matplotlib.figure.Figure
         绘图对象
     """
-    print(f"开始使用{method.upper()}进行2D可视化...")
+    # 开始进行2D可视化
     n_clusters = len(np.unique(labels))
     
     # 降维
@@ -175,7 +176,7 @@ def visualize_clusters_2d(features_scaled, labels, feature_names, method='pca', 
     ax.set_ylabel(f'{method.upper()} Component 2')
     ax.grid(True, alpha=0.3)
     
-    print(f"{method.upper()}可视化完成")
+    # 可视化完成
     return fig
 
 def visualize_feature_distribution(df, labels, output_dir='../results'):
@@ -196,7 +197,7 @@ def visualize_feature_distribution(df, labels, output_dir='../results'):
     fig : matplotlib.figure.Figure
         绘图对象
     """
-    print("开始生成特征分布图...")
+    # 开始生成特征分布图
     df_vis = df.copy()
     df_vis['cluster'] = labels
     
@@ -263,7 +264,7 @@ def visualize_feature_distribution(df, labels, output_dir='../results'):
             axes[col].set_visible(False)
     
     plt.tight_layout()
-    print("特征分布图生成完成")
+    # 特征分布图生成完成
     return fig
 
 def analyze_clusters(df, labels):
@@ -282,7 +283,7 @@ def analyze_clusters(df, labels):
     summary : pandas.DataFrame
         聚类统计摘要
     """
-    print("开始分析聚类结果...")
+    # 开始分析聚类结果
     df_with_labels = df.copy()
     df_with_labels['cluster'] = labels
     
@@ -309,7 +310,7 @@ def analyze_clusters(df, labels):
         summary_data.append(cluster_summary)
     
     summary_df = pd.DataFrame(summary_data)
-    print("聚类结果分析完成")
+    # 聚类结果分析完成
     return summary_df
 
 def add_cluster_to_excel(input_file, output_file, labels):
@@ -328,7 +329,7 @@ def add_cluster_to_excel(input_file, output_file, labels):
     df = pd.read_excel(input_file)
     df['cluster'] = labels
     df.to_excel(output_file, index=False)
-    print(f"已将聚类结果保存到 {output_file}")
+    # 已将聚类结果保存
 
 def determine_optimal_k(features_scaled, max_k=10):
     """
@@ -350,7 +351,7 @@ def determine_optimal_k(features_scaled, max_k=10):
     silhouette_scores : list
         各K值对应的轮廓系数
     """
-    print("正在确定最佳聚类数...")
+    # 正在确定最佳聚类数
     inertia = []
     silhouette_scores = []
     k_range = range(2, max_k + 1)
@@ -364,7 +365,7 @@ def determine_optimal_k(features_scaled, max_k=10):
     
     # 找到轮廓系数最高的k值
     optimal_k = silhouette_scores.index(max(silhouette_scores)) + 2
-    print(f"基于轮廓系数，最佳聚类数为{optimal_k}")
+    # 基于轮廓系数确定最佳聚类数
     
     return optimal_k, inertia, silhouette_scores
 
@@ -386,12 +387,12 @@ def cluster_dbscan(features_scaled, eps=0.5, min_samples=5):
     labels : numpy.ndarray
         聚类标签
     """
-    print(f"使用DBSCAN聚类算法，eps={eps}, min_samples={min_samples}...")
+    # 使用DBSCAN聚类算法
     dbscan = DBSCAN(eps=eps, min_samples=min_samples)
     labels = dbscan.fit_predict(features_scaled)
     n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
     n_noise = list(labels).count(-1)
-    print(f"DBSCAN聚类完成，共{n_clusters}个簇，{n_noise}个噪声点")
+    # DBSCAN聚类完成
     return labels
 
 def visualize_cluster_radar(cluster_stats):
@@ -408,14 +409,14 @@ def visualize_cluster_radar(cluster_stats):
     fig : matplotlib.figure.Figure
         绘图对象
     """
-    print("使用雷达图可视化各簇的特征...")
+    # 使用雷达图可视化各簇的特征
     features = ['amplitude', 'duration', 'fwhm', 'rise_time', 'decay_time', 'auc', 'snr']
     
     # 过滤存在的特征
     available_features = [f for f in features if f + '_mean' in cluster_stats.columns]
     
     if not available_features:
-        print("警告：没有可用的特征用于雷达图")
+        # 警告：没有可用的特征用于雷达图
         return None
     
     # 获取均值数据
@@ -448,7 +449,7 @@ def visualize_cluster_radar(cluster_stats):
     ax.legend(loc='upper right', bbox_to_anchor=(0.1, 0.1))
     
     plt.tight_layout()
-    print("雷达图生成完成")
+    # 雷达图生成完成
     return fig
 
 def plot_to_base64(fig):
@@ -491,7 +492,7 @@ def create_k_comparison_plot(features_scaled, k_values):
     silhouette_scores_dict : dict
         各K值对应的轮廓系数
     """
-    print(f"正在比较不同K值的聚类效果: {k_values}...")
+    # 正在比较不同K值的聚类效果
     
     # 计算每个K值的轮廓系数
     silhouette_scores_dict = {}
@@ -607,7 +608,7 @@ def generate_comprehensive_cluster_analysis(file_path, k=None, algorithm='kmeans
     dict
         包含所有分析结果的字典
     """
-    print("开始综合聚类分析...")
+    # 开始综合聚类分析
     
     # 1. 加载和预处理数据
     df = load_data(file_path)
@@ -623,7 +624,7 @@ def generate_comprehensive_cluster_analysis(file_path, k=None, algorithm='kmeans
     
     # 2. 如果使用K-means且未指定K值，则自动确定最佳K
     if algorithm == 'kmeans' and k is None:
-        print("自动确定最佳K值...")
+        # 自动确定最佳K值
         optimal_k, inertia_values, silhouette_scores = determine_optimal_k(
             features_scaled, max_k=auto_k_range[1]
         )
@@ -658,7 +659,7 @@ def generate_comprehensive_cluster_analysis(file_path, k=None, algorithm='kmeans
     result['labels'] = labels.tolist()
     
     # 4. 生成可视化图表
-    print("生成可视化图表...")
+    # 生成可视化图表
     
     # 2D聚类可视化
     cluster_plot = visualize_clusters_2d(features_scaled, labels, feature_names, 
@@ -691,5 +692,5 @@ def generate_comprehensive_cluster_analysis(file_path, k=None, algorithm='kmeans
     add_cluster_to_excel(file_path, str(output_path), labels)
     result['output_file'] = output_filename
     
-    print("综合聚类分析完成!")
+    # 综合聚类分析完成
     return result

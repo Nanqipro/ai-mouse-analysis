@@ -62,7 +62,7 @@ if args.min_prominence is not None:
     Config.MIN_PROMINENCE = args.min_prominence
 
 # 加载数据
-print(f"正在从 {Config.INPUT_FILE} 加载数据...")
+# 正在从文件加载数据
 day6_data_full = pd.read_excel(Config.INPUT_FILE)
 
 # 将 'stamp' 列设置为索引
@@ -82,7 +82,7 @@ else:
     neural_data_full = day6_data_full.copy()
 
 # 基于全局数据进行神经元排序（重要：确保不同时间区间的神经元排序一致）
-print("正在基于全局数据计算神经元排序...")
+# 正在基于全局数据计算神经元排序
 neural_data_full_standardized = (neural_data_full - neural_data_full.mean()) / neural_data_full.std()
 
 # 函数：按自定义神经元顺序排序
@@ -179,9 +179,9 @@ elif Config.SORT_METHOD == 'custom':
     sorted_neurons = sort_neurons_by_custom_order(neural_data_full_standardized.columns, Config.CUSTOM_NEURON_ORDER)
     
     sort_method_str = "Sorted by custom order"
-    print(f"使用自定义神经元排序")
-    print(f"指定顺序: {Config.CUSTOM_NEURON_ORDER}")
-    print("剩余神经元将按字符串大小顺序排列在指定神经元下方")
+    # 使用自定义神经元排序
+     # 指定顺序已配置
+     # 剩余神经元将按字符串大小顺序排列在指定神经元下方
 else:  # 'calcium_wave'
     # 新方法：按第一次真实钙波发生时间排序（基于全局数据）
     first_wave_times = {}
@@ -199,8 +199,8 @@ else:  # 'calcium_wave'
     
     sort_method_str = "Sorted by first calcium wave time (global)"
 
-print(f"神经元排序方式: {sort_method_str}")
-print(f"神经元排序基于全局数据，确保不同时间区间的热图具有一致的纵坐标排序")
+# 神经元排序方式已确定
+ # 神经元排序基于全局数据，确保不同时间区间的热图具有一致的纵坐标排序
 
 # 现在根据配置的时间戳区间筛选数据
 if Config.STAMP_MIN is not None or Config.STAMP_MAX is not None:
@@ -216,11 +216,11 @@ if Config.STAMP_MIN is not None or Config.STAMP_MAX is not None:
         behavior_data_interval = behavior_data_full.loc[min_stamp:max_stamp]
         frame_lost = behavior_data_interval
     
-    print(f"已筛选时间戳区间: {min_stamp} 到 {max_stamp}")
+    # 已筛选时间戳区间
     # 对应的秒数区间
     min_seconds = min_stamp / Config.SAMPLING_RATE
     max_seconds = max_stamp / Config.SAMPLING_RATE
-    print(f"对应的时间区间: {min_seconds:.2f}s 到 {max_seconds:.2f}s")
+    # 对应的时间区间已确定
 else:
     # 如果没有指定时间区间，使用全部数据
     neural_data_interval = neural_data_full
@@ -244,11 +244,11 @@ global_unique_behaviors = []  # 全局行为类型
 if has_behavior:
     # 获取全局数据中所有不同的行为标签（用于创建一致的图例）
     global_unique_behaviors = behavior_data_full.dropna().unique()
-    print(f"全局行为类型: {list(global_unique_behaviors)}")
+    # 全局行为类型已识别
     
     # 获取当前时间区间内的行为标签
     unique_behaviors = frame_lost.dropna().unique()
-    print(f"当前时间区间内的行为类型: {list(unique_behaviors)}")
+    # 当前时间区间内的行为类型已识别
     
     # 初始化当前时间区间内行为的区间字典
     for behavior in unique_behaviors:
@@ -598,10 +598,10 @@ new_behavior_pos = Bbox([[heatmap_bbox.x0, behavior_bbox.y0],
 ax_behavior.set_position(new_behavior_pos)
 
 # 4. 保存图像
-print(f"正在保存图像到 {output_filename}")
+# 正在保存图像
 fig.savefig(output_filename, bbox_inches='tight', pad_inches=0.1, dpi=100)
 plt.close()
 
 # 输出保存信息
-print(f"热图已保存至: {output_filename}")
-print("程序执行完成")
+# 热图已保存
+ # 程序执行完成

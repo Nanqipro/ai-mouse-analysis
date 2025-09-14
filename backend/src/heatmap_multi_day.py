@@ -579,7 +579,8 @@ def analyze_multiday_heatmap(data_dict: Dict[str, pd.DataFrame],
                 'info': combo_info
             }
         except Exception as e:
-            print(f"组合热力图创建失败: {e}")
+             # 组合热力图创建失败
+             pass
     
     # 创建单独热力图
     if create_individual:
@@ -591,7 +592,8 @@ def analyze_multiday_heatmap(data_dict: Dict[str, pd.DataFrame],
                 reference_day = available_days[0]
                 reference_order = calculate_sorting_for_multiday(data_dict[reference_day], config)
             except Exception as e:
-                print(f"参考排序计算失败: {e}")
+                 # 参考排序计算失败
+                 pass
         
         for day, data in data_dict.items():
             try:
@@ -603,16 +605,17 @@ def analyze_multiday_heatmap(data_dict: Dict[str, pd.DataFrame],
                     'info': info
                 }
             except Exception as e:
-                print(f"{day}单独热力图创建失败: {e}")
+                 # 单独热力图创建失败
+                 pass
     
     # 生成总体分析信息
     results['analysis_info'] = {
-        'total_days': len(available_days),
+        'total_days': int(len(available_days)),
         'available_days': available_days,
         'sort_method': config.sort_method,
-        'has_correspondence_table': correspondence_table is not None,
-        'combination_created': results['combination_heatmap'] is not None,
-        'individual_created': len(results['individual_heatmaps']) > 0
+        'has_correspondence_table': bool(correspondence_table is not None),
+        'combination_created': bool(results['combination_heatmap'] is not None),
+        'individual_created': bool(len(results['individual_heatmaps']) > 0)
     }
     
     return results

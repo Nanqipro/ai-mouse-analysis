@@ -33,8 +33,11 @@
                 行为分析参数
               </h3>
               
+
+              
               <el-alert
-                v-if="behaviorFileList.length === 0"
+                v-if="!hasBehaviorFile"
+                :key="'alert-' + forceUpdateKey"
                 title="请先上传数据文件"
                 type="info"
                 :closable="false"
@@ -137,10 +140,11 @@
               
               <el-upload
                 ref="behaviorUploadRef"
+                :file-list="behaviorFileList"
                 :on-change="handleBehaviorFileChange"
                 :on-remove="handleBehaviorFileRemove"
                 :before-upload="() => false"
-                :file-list="behaviorFileList"
+                :auto-upload="false"
                 accept=".xlsx,.xls"
                 drag
                 :limit="1"
@@ -158,7 +162,7 @@
               </el-upload>
               
               <!-- 文件状态显示 -->
-              <div v-if="behaviorFileList.length > 0" class="file-status-display">
+              <div v-if="hasBehaviorFile" class="file-status-display">
                 <el-divider content-position="left">
                   <el-icon><Document /></el-icon>
                   已上传文件
@@ -212,7 +216,7 @@
                 <el-button
                   type="primary"
                   :loading="behaviorAnalysisLoading"
-                  :disabled="!behaviorFileList.length || !behaviorParams.start_behavior || !behaviorParams.end_behavior"
+                  :disabled="!hasBehaviorFile || !behaviorParams.start_behavior || !behaviorParams.end_behavior"
                   @click="startBehaviorAnalysis"
                 >
                   <el-icon><VideoPlay /></el-icon>
@@ -234,6 +238,8 @@
                 <el-icon><Setting /></el-icon>
                 EM排序参数
               </h3>
+              
+
               
               <el-form :model="emSortParams" label-width="120px" size="small">
                 <el-form-item label="时间范围开始">
@@ -323,12 +329,15 @@
               
               <el-upload
                 ref="emSortUploadRef"
+                :file-list="emSortFileList"
                 :on-change="handleEmSortFileChange"
                 :on-remove="handleEmSortFileRemove"
                 :before-upload="() => false"
+                :auto-upload="false"
                 accept=".xlsx,.xls"
                 drag
                 :limit="1"
+                list-type="text"
               >
                 <el-icon class="el-icon--upload"><upload-filled /></el-icon>
                 <div class="el-upload__text">
@@ -432,13 +441,16 @@
               
               <el-upload
                 ref="multiDayUploadRef"
+                :file-list="multiDayFileList"
                 :on-change="handleMultiDayFileChange"
                 :on-remove="handleMultiDayFileRemove"
                 :before-upload="() => false"
+                :auto-upload="false"
                 accept=".xlsx,.xls"
                 drag
                 multiple
                 :limit="10"
+                list-type="text"
               >
                 <el-icon class="el-icon--upload"><upload-filled /></el-icon>
                 <div class="el-upload__text">
@@ -644,7 +656,7 @@
 </template>
 
 <script setup>
-import { ref, computed, reactive } from 'vue'
+import { ref, computed, reactive, nextTick, triggerRef, toRefs } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   TrendCharts,
@@ -687,8 +699,8 @@ const behaviorOptions = ref([...defaultBehaviorOptions])
 
 // 行为序列热力图参数
 const behaviorParams = reactive({
-  start_behavior: '',
-  end_behavior: '',
+  start_behavior: 'Explore',
+  end_behavior: 'Water',
   pre_behavior_time: 10.0,
   sampling_rate: 4.8,
   min_behavior_duration: 1.0
@@ -721,8 +733,27 @@ const multiDayParams = reactive({
 // 文件列表
 const behaviorFileList = ref([])
 const emSortFileList = ref([])
+const forceUpdateKey = ref(0)
 const multiDayFileList = ref([])
 const multiDayLabels = ref([])
+
+// 计算属性确保响应式更新
+const behaviorFileCount = computed(() => {
+  return behaviorFileList.value?.length || 0
+})
+
+const hasBehaviorFile = computed(() => {
+  return behaviorFileCount.value > 0
+})
+
+// EM排序热力图计算属性
+const emSortFileCount = computed(() => {
+  return emSortFileList.value?.length || 0
+})
+
+const hasEmSortFile = computed(() => {
+  return emSortFileCount.value > 0
+})
 
 // 加载状态
 const behaviorAnalysisLoading = ref(false)
@@ -815,8 +846,14 @@ const fetchBehaviorLabels = async (file) => {
 const handleBehaviorFileChange = async (file, fileList) => {
   behaviorFileList.value = fileList
   
-  // 如果有文件上传，自动获取行为标签
-  if (fileList.length > 0 && fileList[0]) {
+  // 强制触发响应式更新
+  triggerRef(behaviorFileList)
+  forceUpdateKey.value++
+  
+  // 确保DOM更新
+  await nextTick()
+  
+  if (fileList.length > 0) {
     await fetchBehaviorLabels(fileList[0])
   } else {
     // 如果没有文件，恢复默认选项
@@ -829,7 +866,11 @@ const handleBehaviorFileChange = async (file, fileList) => {
 const handleBehaviorFileRemove = (file, fileList) => {
   behaviorFileList.value = fileList
   
-  // 如果没有文件了，恢复默认选项
+  // 强制触发响应式更新
+  triggerRef(behaviorFileList)
+  forceUpdateKey.value++
+  
+  // 如果没有文件，恢复默认选项
   if (fileList.length === 0) {
     behaviorOptions.value = [...defaultBehaviorOptions]
     behaviorParams.start_behavior = 'Eat-seed-kernels'
@@ -837,8 +878,12 @@ const handleBehaviorFileRemove = (file, fileList) => {
   }
 }
 
-const handleEmSortFileChange = (file, fileList) => {
+const handleEmSortFileChange = async (file, fileList) => {
   emSortFileList.value = fileList
+  
+  if (fileList.length > 0) {
+    await fetchEmSortLabels()
+  }
 }
 
 const handleEmSortFileRemove = (file, fileList) => {

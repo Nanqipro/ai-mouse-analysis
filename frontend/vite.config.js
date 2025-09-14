@@ -15,19 +15,21 @@ export default defineConfig({
       resolvers: [ElementPlusResolver()],
     }),
   ],
+  define: {
+    __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: 'false'
+  },
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),
     },
   },
   server: {
-    port: 5173,
-    proxy: {
-      '/api': {
-        target: 'http://127.0.0.1:8000',
-        changeOrigin: true,
-        secure: false,
-      },
+    port: 5175,
+    hmr: {
+      port: 24678
     },
-  },
+    headers: {
+      'Cache-Control': 'no-cache'
+    }
+  }
 })

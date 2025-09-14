@@ -15,7 +15,7 @@ def save_plot_as_base64(fig) -> str:
     返回
     -------
     str
-        base64编码的图片字符串
+        完整的data URL格式的图片字符串
     """
     buffer = io.BytesIO()
     fig.savefig(buffer, format='png', dpi=100, bbox_inches='tight')
@@ -23,7 +23,7 @@ def save_plot_as_base64(fig) -> str:
     image_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
     buffer.close()
     plt.close(fig)  # 关闭图表以释放内存
-    return image_base64  # 只返回base64字符串，不包含data URL前缀
+    return f"data:image/png;base64,{image_base64}"  # 返回完整的data URL格式
 
 def validate_excel_file(file_path: str, required_sheet: str = 'dF') -> bool:
     """

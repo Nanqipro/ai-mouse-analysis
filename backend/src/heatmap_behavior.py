@@ -156,14 +156,12 @@ def convert_timestamps_to_seconds(data: pd.DataFrame, sampling_rate: float) -> p
         转换后的数据，索引为秒
     """
     # 调试信息：查看数据索引的具体情况
-    print(f"调试信息：数据索引类型: {type(data.index[0])}")
-    print(f"调试信息：前5个索引值: {data.index[:5].tolist()}")
-    print(f"调试信息：索引范围: {data.index.min()} - {data.index.max()}")
+    # 数据索引类型检查已移除调试信息
     
     # 检查时间戳是否为连续的数值序列
     import numbers
     is_numeric = isinstance(data.index[0], (int, float, numbers.Integral, numbers.Real)) or np.issubdtype(data.index.dtype, np.number)
-    print(f"调试信息：isinstance检查结果: {is_numeric}")
+    # isinstance检查结果已移除调试信息
     
     if is_numeric:
         # 计算时间间隔来判断是否需要转换
@@ -173,16 +171,15 @@ def convert_timestamps_to_seconds(data: pd.DataFrame, sampling_rate: float) -> p
         # 如果平均时间间隔接近1/采样率，说明时间戳已经是秒
         expected_interval = 1.0 / sampling_rate
         
-        print(f"调试信息：平均时间间隔: {avg_interval:.3f}, 期望秒间隔: {expected_interval:.3f}")
-        print(f"调试信息：差值: {abs(avg_interval - expected_interval):.3f}, 阈值: {expected_interval * 0.1:.3f}")
+        # 时间间隔检查已移除调试信息
         
         if abs(avg_interval - expected_interval) < expected_interval * 0.1:
             # 时间戳已经是秒，直接返回
-            print(f"检测到时间戳已为秒格式（平均间隔: {avg_interval:.3f}s）")
+            # 时间戳已为秒格式
             return data
         else:
             # 时间戳是数据点索引，需要转换为秒
-            print(f"检测到时间戳为采样点索引（间隔: {avg_interval:.1f}点），转换为秒")
+            # 时间戳为采样点索引，转换为秒
             
             # 正确的转换：将采样点索引转换为时间（秒）
             # 假设第一个采样点（索引1）对应时间0秒
@@ -191,11 +188,11 @@ def convert_timestamps_to_seconds(data: pd.DataFrame, sampling_rate: float) -> p
             data_converted = data.copy()
             data_converted.index = time_seconds
             
-            print(f"时间转换完成: {data.index.min()}-{data.index.max()}(采样点) → {time_seconds.min():.2f}-{time_seconds.max():.2f}(秒)")
+            # 时间转换完成
             return data_converted
     else:
         # 如果时间戳已经是时间格式，直接返回
-        print(f"检测到时间戳为非数值格式，类型: {type(data.index[0])}")
+        # 检测到时间戳为非数值格式
         return data
 
 def load_and_validate_data(file_path: str) -> pd.DataFrame:
@@ -236,7 +233,7 @@ def load_and_validate_data(file_path: str) -> pd.DataFrame:
     
     if 'behavior' not in data.columns:
         # 如果没有behavior列，创建一个默认的behavior列
-        print("警告: 数据文件缺少 'behavior' 列，将创建默认行为标签")
+        # 数据文件缺少 'behavior' 列，创建默认行为标签
         data['behavior'] = 'Unknown'
     
     # 设置时间戳为索引
@@ -335,25 +332,25 @@ def find_behavior_pairs(data: pd.DataFrame,
     start_events = detect_behavior_events(data, start_behavior, min_duration, sampling_rate)
     
     if not start_events:
-        print(f"未找到 {start_behavior} 行为事件")
+        # 未找到指定行为事件
         return []
     
     behavior_pairs = []
     
     # 如果是同一行为，直接使用每个事件的开始和结束时间
     if start_behavior == end_behavior:
-        print(f"分析同一行为: {start_behavior}")
+        # 分析同一行为
         for start_time, end_time in start_events:
             behavior_pairs.append((start_time, start_time, end_time, end_time))
     else:
         # 如果是不同行为，需要检查行为的连续性
-        print(f"分析连续行为: {start_behavior} → {end_behavior}")
+        # 分析连续行为
         
         # 检测结束行为事件
         end_events = detect_behavior_events(data, end_behavior, min_duration, sampling_rate)
         
         if not end_events:
-            print(f"未找到 {end_behavior} 行为事件")
+            # 未找到结束行为事件
             return []
         
         # 获取完整的行为序列，用于检查连续性
@@ -372,9 +369,10 @@ def find_behavior_pairs(data: pd.DataFrame,
             if continuous_pair:
                 end_begin, end_end = continuous_pair
                 behavior_pairs.append((start_begin, start_end, end_begin, end_end))
-                print(f"找到连续行为配对: {start_behavior}({start_begin:.1f}s-{start_end:.1f}s) → {end_behavior}({end_begin:.1f}s-{end_end:.1f}s)")
+                # 找到连续行为配对
             else:
-                print(f"跳过非连续行为: {start_behavior}({start_begin:.1f}s-{start_end:.1f}s) 后没有紧接着 {end_behavior}")
+                # 跳过非连续行为
+                pass
     
     return behavior_pairs
 
@@ -488,7 +486,7 @@ def extract_behavior_sequence_data(data: pd.DataFrame,
     
     # 检查时间范围是否在数据范围内
     if sequence_start < data.index.min() or sequence_end > data.index.max():
-        print(f"时间范围 {sequence_start:.1f}s - {sequence_end:.1f}s 超出数据范围 {data.index.min():.1f}s - {data.index.max():.1f}s")
+        # 时间范围超出数据范围
         return None
     
     # 提取时间序列内的数据
@@ -1071,50 +1069,46 @@ def main():
         # __init__中的设定具有最高优先级
         config.START_BEHAVIOR = init_start_behavior
         config.END_BEHAVIOR = init_end_behavior
-        print(f"使用起始行为: {config.START_BEHAVIOR}, 结束行为: {config.END_BEHAVIOR} (来源: __init__配置，优先级最高)")
+        # 使用配置中的起始和结束行为
     else:
         # 命令行参数优先
         if args.start_behavior:
             config.START_BEHAVIOR = args.start_behavior
         if args.end_behavior:
             config.END_BEHAVIOR = args.end_behavior
-        print(f"使用起始行为: {config.START_BEHAVIOR}, 结束行为: {config.END_BEHAVIOR} (来源: 命令行参数)")
+        # 使用命令行参数中的起始和结束行为
     
     # 创建输出目录
     os.makedirs(config.OUTPUT_DIR, exist_ok=True)
     
     try:
         # 加载数据
-        print(f"正在加载数据: {config.INPUT_FILE}")
+        # 加载数据文件
         data = load_and_validate_data(config.INPUT_FILE)
         
         # 保持原始时间戳格式，不进行转换
-        print(f"保持原始时间戳格式（采样率: {config.SAMPLING_RATE}Hz）")
-        print(f"数据加载成功，包含 {len(data)} 个时间点，时间戳范围: {data.index.min():.0f} - {data.index.max():.0f}")
+        # 数据加载成功
         
         # 根据配置决定是否计算全局神经元排序顺序
         global_neuron_order = None
         first_heatmap_order = None
         
         if config.SORTING_METHOD == 'global':
-            print("正在计算全局神经元排序顺序...")
+            # 计算全局神经元排序顺序
             global_neuron_order = get_global_neuron_order(data)
-            print(f"全局排序完成，共 {len(global_neuron_order)} 个神经元按峰值时间排序")
+            # 全局排序完成
         elif config.SORTING_METHOD == 'custom':
-            print(f"使用自定义神经元排序模式")
-            print(f"指定顺序: {config.CUSTOM_NEURON_ORDER}")
-            print("剩余神经元将按字符串大小顺序排列在指定神经元下方")
-        elif config.SORTING_METHOD == 'first':
-            print("使用首图排序模式，将以第一个热图的排序为基准，后续热图使用相同神经元顺序")
-        else:
-            print("使用局部排序模式，每个热图将根据当前时间窗口内的峰值时间独立排序")
+             # 使用自定义神经元排序模式
+             pass
+         elif config.SORTING_METHOD == 'first':
+             # 使用首图排序模式
+             pass
+         else:
+             # 使用局部排序模式
+             pass
         
         # 查找连续行为配对
-        if config.START_BEHAVIOR == config.END_BEHAVIOR:
-            print(f"正在查找 {config.START_BEHAVIOR} 行为事件...")
-        else:
-            print(f"正在查找连续行为配对: {config.START_BEHAVIOR} → {config.END_BEHAVIOR}")
-            print("注意：只有连续出现的行为配对才会被处理")
+        # 查找行为配对
         
         behavior_pairs = find_behavior_pairs(
             data,
@@ -1125,29 +1119,21 @@ def main():
         )
         
         if not behavior_pairs:
-            if config.START_BEHAVIOR == config.END_BEHAVIOR:
-                print(f"未找到符合条件的 {config.START_BEHAVIOR} 行为事件")
-            else:
-                print(f"未找到符合条件的连续行为配对: {config.START_BEHAVIOR} → {config.END_BEHAVIOR}")
-                print("提示：请检查这两个行为是否在数据中连续出现")
+            # 未找到符合条件的行为配对
             return
         
-        if config.START_BEHAVIOR == config.END_BEHAVIOR:
-            print(f"找到 {len(behavior_pairs)} 个 {config.START_BEHAVIOR} 行为事件")
-        else:
-            print(f"找到 {len(behavior_pairs)} 个连续行为配对")
-            print("所有配对都满足连续性要求")
+        # 找到行为配对
         
         # 分析每个行为配对
         all_sequence_data = []
         
         for i, (start_begin, start_end, end_begin, end_end) in enumerate(behavior_pairs):
             if config.START_BEHAVIOR == config.END_BEHAVIOR:
-                print(f"正在分析序列 {i+1}: {config.START_BEHAVIOR} (时间戳 {start_begin:.0f} - {end_end:.0f})")
+                # 分析单一行为序列
                 sequence_start_time = start_begin
                 sequence_end_time = end_end
             else:
-                print(f"正在分析序列 {i+1}: {config.START_BEHAVIOR} (时间戳 {start_begin:.0f} - {start_end:.0f}) → {config.END_BEHAVIOR} (时间戳 {end_begin:.0f} - {end_end:.0f})")
+                # 分析连续行为序列
                 sequence_start_time = start_begin
                 sequence_end_time = end_end
             
@@ -1161,7 +1147,7 @@ def main():
             )
             
             if sequence_data is None:
-                print(f"序列 {i+1} 的时间范围超出数据范围，跳过")
+                # 序列时间范围超出数据范围，跳过
                 continue
             
             # 标准化数据
@@ -1190,7 +1176,7 @@ def main():
             # 如果是首图排序且这是第一个热图，保存排序顺序
             if config.SORTING_METHOD == 'first' and i == 0:
                 first_heatmap_order = current_order
-                print(f"第一个热图排序顺序已确定，共 {len(current_order)} 个神经元")
+                # 第一个热图排序顺序已确定
             
             # 保存图形
             if config.START_BEHAVIOR == config.END_BEHAVIOR:
@@ -1206,11 +1192,11 @@ def main():
             
             fig.savefig(output_path, bbox_inches='tight', pad_inches=0.1, dpi=100)
             plt.close(fig)
-            print(f"已保存: {output_path}")
+            # 热图已保存
         
         # 创建平均热力图
         if all_sequence_data:
-            print("正在创建平均热力图...")
+            # 创建平均热力图
             avg_fig = create_average_sequence_heatmap(
                 all_sequence_data,
                 config.START_BEHAVIOR,
@@ -1235,12 +1221,13 @@ def main():
             
             avg_fig.savefig(avg_output_path, bbox_inches='tight', pad_inches=0.1, dpi=100)
             plt.close(avg_fig)
-            print(f"已保存平均热力图: {avg_output_path}")
+            # 平均热力图已保存
         
-        print(f"分析完成！共处理 {len(all_sequence_data)} 个有效序列")
+        # 分析完成
         
     except Exception as e:
-        print(f"错误: {e}")
+        # 分析过程中发生错误
+        raise e
         raise
 
 if __name__ == "__main__":

@@ -57,7 +57,7 @@ app = FastAPI(title="钙信号分析平台 API", version="1.0.0")
 # 配置CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:5174"],  # Vue开发服务器地址
+    allow_origins=["http://localhost:5173", "http://localhost:5174", "http://localhost:5175", "http://localhost:5176", "http://127.0.0.1:5173", "http://127.0.0.1:5174", "http://127.0.0.1:5175", "http://127.0.0.1:5176"],  # Vue开发服务器地址
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -600,15 +600,15 @@ async def detect_behavior_events(
         with open(temp_file, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         
-        print(f"检测行为事件，文件: {temp_file}")
+        # 检测行为事件
         
         # 加载数据
         data = load_and_validate_data(str(temp_file))
-        print(f"数据加载成功，形状: {data.shape}")
+        # 数据加载成功
         
         # 获取所有唯一的行为类型
         unique_behaviors = data['behavior'].unique().tolist()
-        print(f"发现的行为类型: {unique_behaviors}")
+        # 发现行为类型
         
         # 查找所有可能的行为配对（使用默认参数）
         behavior_events = []
@@ -633,10 +633,10 @@ async def detect_behavior_events(
                                 'duration': float((end_end - start_begin) / 4.8)  # 转换为秒
                             })
                     except Exception as e:
-                        print(f"查找行为配对 {start_behavior} -> {end_behavior} 时出错: {e}")
+                        # 查找行为配对时出错
                         continue
         
-        print(f"检测到 {len(behavior_events)} 个行为事件配对")
+        # 检测到行为事件配对
         
         # 清理临时文件
         if temp_file.exists():
@@ -679,11 +679,11 @@ async def extract_behavior_labels(
         with open(temp_file, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         
-        print(f"提取行为标签，文件: {temp_file}")
+        # 提取行为标签
         
         # 加载数据
         data = load_and_validate_data(str(temp_file))
-        print(f"数据加载成功，形状: {data.shape}")
+        # 数据加载成功
         
         # 检查是否有behavior列
         if 'behavior' not in data.columns:
@@ -701,7 +701,7 @@ async def extract_behavior_labels(
         # 按字母顺序排序
         unique_behaviors = sorted(unique_behaviors)
         
-        print(f"发现的行为类型: {unique_behaviors}")
+        # 发现行为类型
         
         # 清理临时文件
         temp_file.unlink()
@@ -814,10 +814,11 @@ async def heatmap_analysis(
                 plot_base64 = save_plot_as_base64(fig)
                 heatmap_images.append({
                     "title": f"行为配对 {valid_pairs_count} 热力图",
-                    "url": f"data:image/png;base64,{plot_base64}"
+                    "url": plot_base64
                 })
             else:
-                print(f"跳过行为配对 {i+1}: 时间范围超出数据范围")
+                # 跳过时间范围超出数据范围的行为配对
+                pass
         
         # 检查是否有有效的序列数据
         if not all_sequence_data:
@@ -835,7 +836,7 @@ async def heatmap_analysis(
             avg_plot_base64 = save_plot_as_base64(avg_fig)
             heatmap_images.append({
                 "title": "平均热力图",
-                "url": f"data:image/png;base64,{avg_plot_base64}"
+                "url": avg_plot_base64
             })
         
         # 清理临时文件
@@ -895,11 +896,11 @@ async def overall_heatmap_analysis(
         with open(temp_file, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         
-        print(f"整体热力图分析，文件: {temp_file}")
+        # 整体热力图分析
         
         # 读取数据
         data = pd.read_excel(temp_file)
-        print(f"数据加载成功，形状: {data.shape}")
+        # 数据加载成功
         
         # 创建配置对象
         config = OverallHeatmapConfig()
@@ -923,7 +924,7 @@ async def overall_heatmap_analysis(
         return {
             "success": True,
             "filename": file.filename,
-            "heatmap_image": f"data:image/png;base64,{plot_base64}",
+            "heatmap_image": plot_base64,
             "analysis_info": info,
             "config": {
                 "stamp_min": stamp_min,
@@ -964,11 +965,11 @@ async def em_sort_heatmap_analysis(
         with open(temp_file, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         
-        print(f"EM排序热力图分析，文件: {temp_file}")
+        # EM排序热力图分析
         
         # 读取数据
         data = pd.read_excel(temp_file)
-        print(f"数据加载成功，形状: {data.shape}")
+        # 数据加载成功
         
         # 解析自定义神经元顺序
         custom_order = None
@@ -1004,7 +1005,7 @@ async def em_sort_heatmap_analysis(
         return {
             "success": True,
             "filename": file.filename,
-            "heatmap_image": f"data:image/png;base64,{plot_base64}",
+            "heatmap_image": plot_base64,
             "analysis_info": info,
             "config": {
                 "stamp_min": stamp_min,
@@ -1064,7 +1065,7 @@ async def multi_day_heatmap_analysis(
             # 读取数据
             data = pd.read_excel(temp_file)
             data_dict[day_label] = data
-            print(f"{day_label}数据加载成功，形状: {data.shape}")
+            # 数据加载成功
         
         # 创建配置对象
         config = MultiDayHeatmapConfig(
@@ -1105,7 +1106,7 @@ async def multi_day_heatmap_analysis(
         if results['combination_heatmap']:
             combo_base64 = save_plot_as_base64(results['combination_heatmap']['figure'])
             response_data['combination_heatmap'] = {
-                "image": f"data:image/png;base64,{combo_base64}",
+                "image": combo_base64,
                 "info": results['combination_heatmap']['info']
             }
         
@@ -1115,7 +1116,7 @@ async def multi_day_heatmap_analysis(
             individual_base64 = save_plot_as_base64(heatmap_data['figure'])
             individual_heatmaps.append({
                 "day": day,
-                "image": f"data:image/png;base64,{individual_base64}",
+                "image": individual_base64,
                 "info": heatmap_data['info']
             })
         
@@ -1163,9 +1164,9 @@ if __name__ == "__main__":
         app, 
         host="0.0.0.0", 
         port=8000,
-        limit_max_requests=1000,
+        limit_max_requests=2000,
         limit_concurrency=1000,
         timeout_keep_alive=30,
-        # 增加请求头大小限制到16KB
-        h11_max_incomplete_event_size=16384
+        timeout_graceful_shutdown=5,
+        h11_max_incomplete_event_size=2097152  # 2MB
     )
