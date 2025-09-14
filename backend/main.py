@@ -1112,48 +1112,20 @@ async def download_file(filename: str):
 
 if __name__ == "__main__":
     import uvicorn
-    import os
-    
-    # 设置环境变量解决HTTP头部大小问题
-    os.environ['UVICORN_H11_MAX_INCOMPLETE_EVENT_SIZE'] = '65536'
-    
-    print("🚀 启动钙信号分析平台后端服务...")
-    print("📋 服务配置:")
-    print(f"   - 监听地址: 0.0.0.0:8000")
-    print(f"   - 请求头大小限制: 65536 bytes (64KB)")
-    print(f"   - 文件上传限制: 200MB")
-    print(f"   - 并发连接数: 2000")
-    print(f"   - 超时设置: 60秒")
-    
-    # 启动uvicorn服务器，使用优化的配置解决431错误
+    # 增加请求头大小限制，解决431错误
     uvicorn.run(
         app, 
         host="0.0.0.0", 
         port=8000,
-        # HTTP连接配置
+        limit_max_requests=1000,
+        limit_concurrency=1000,
+        timeout_keep_alive=30,
+        # 增加请求头大小限制到32KB
+        h11_max_incomplete_event_size=32768,
+        # 增加最大请求大小限制
         limit_max_requests=2000,
-        limit_concurrency=2000,
-        timeout_keep_alive=60,
+        # 设置HTTP超时
         timeout_graceful_shutdown=60,
-        
-        # 增加请求头大小限制到64KB（解决431错误）
-        h11_max_incomplete_event_size=65536,
-        
-        # 工作进程配置
-        workers=1,
-        
-        # 日志配置
-        log_level="info",
-        access_log=True,
-        
-        # 重新加载配置（开发环境）
-        reload=False,  # 设为False避免开发时的重载问题
-        
-        # SSL配置（如果需要）
-        ssl_keyfile=None,
-        ssl_certfile=None,
-        
-        # 其他优化选项
-        loop="auto",
-        lifespan="on",
+        # 启用更多的工作进程处理能力
+        workers=1
     )

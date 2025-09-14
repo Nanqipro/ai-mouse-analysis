@@ -4,8 +4,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "NODE_OPTIONS='--max-http-header-size=65536 --max-old-space-size=4096' vite --host 0.0.0.0",
-    "dev:debug": "NODE_OPTIONS='--max-http-header-size=65536 --max-old-space-size=4096 --inspect' vite --host 0.0.0.0",
+    "dev": "NODE_OPTIONS='--max-http-header-size=32768' vite",
     "build": "vite build",
     "preview": "vite preview"
   },
