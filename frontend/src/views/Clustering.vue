@@ -890,9 +890,9 @@ const getFeatureLabel = (feature) => {
   align-items: center;
   gap: 8px;
   margin-bottom: 20px;
-  color: #2c3e50;
-  font-size: 16px;
-  font-weight: 600;
+  color: #303133;
+  font-size: 18px;
+  font-weight: bold;
 }
 
 .params-panel {
@@ -912,6 +912,36 @@ const getFeatureLabel = (feature) => {
   font-size: 12px;
   color: #909399;
   margin-top: 4px;
+}
+
+/* 统一的表单项样式 */
+:deep(.el-form) {
+  margin-bottom: 0;
+}
+
+:deep(.el-form-item) {
+  margin-bottom: 18px;
+}
+
+:deep(.el-form-item__label) {
+  font-weight: 500;
+  color: #606266;
+}
+
+:deep(.el-input-number) {
+  width: 100%;
+}
+
+:deep(.el-select) {
+  width: 100%;
+}
+
+:deep(.el-input) {
+  width: 100%;
+}
+
+:deep(.el-slider) {
+  width: 100%;
 }
 
 .result-overview {

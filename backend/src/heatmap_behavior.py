@@ -34,6 +34,8 @@ class BehaviorHeatmapConfig:
         结束行为类型
     PRE_BEHAVIOR_TIME : float
         行为开始前的时间（秒）
+    POST_BEHAVIOR_TIME : float
+        行为开始后的时间（秒）
     SAMPLING_RATE : float
         采样率（Hz）
     MIN_BEHAVIOR_DURATION : float
@@ -50,7 +52,9 @@ class BehaviorHeatmapConfig:
         # 结束行为类型（分析到此行为结束时刻）
         self.END_BEHAVIOR = 'Eat-seed-kernels'
         # 行为开始前的时间（秒）
-        self.PRE_BEHAVIOR_TIME = 10.0
+        self.PRE_BEHAVIOR_TIME = 15.0
+        # 行为开始后的时间（秒）
+        self.POST_BEHAVIOR_TIME = 45.0
         # 采样率（钙离子数据采样频率：4.8Hz）
         self.SAMPLING_RATE = 4.8
         # 最小行为持续时间（秒），用于过滤短暂的误标记
@@ -457,9 +461,10 @@ def extract_behavior_sequence_data(data: pd.DataFrame,
                                  start_time: float,
                                  end_time: float,
                                  pre_behavior_time: float,
+                                 post_behavior_time: float,
                                  sampling_rate: float = 4.8) -> Optional[pd.DataFrame]:
     """
-    提取从行为开始前到行为结束的数据序列
+    提取从行为开始前到行为开始后指定时间的数据序列
     
     Parameters
     ----------
@@ -471,6 +476,8 @@ def extract_behavior_sequence_data(data: pd.DataFrame,
         结束行为结束时间戳
     pre_behavior_time : float
         行为开始前的时间（秒）
+    post_behavior_time : float
+        行为开始后的时间（秒）
     sampling_rate : float
         采样率（Hz），用于计算时间戳偏移量
         
@@ -481,8 +488,9 @@ def extract_behavior_sequence_data(data: pd.DataFrame,
     """
     # 将行为开始前的时间（秒）转换为时间戳偏移量
     pre_behavior_timestamps = pre_behavior_time * sampling_rate
+    post_behavior_timestamps = post_behavior_time * sampling_rate
     sequence_start = start_time - pre_behavior_timestamps
-    sequence_end = end_time
+    sequence_end = start_time + post_behavior_timestamps
     
     # 检查时间范围是否在数据范围内
     if sequence_start < data.index.min() or sequence_end > data.index.max():
@@ -639,6 +647,7 @@ def create_behavior_sequence_heatmap(data: pd.DataFrame,
                                    start_behavior: str,
                                    end_behavior: str,
                                    pre_behavior_time: float,
+                                   post_behavior_time: float,
                                    config: BehaviorHeatmapConfig,
                                    pair_index: int,
                                    global_neuron_order: Optional[pd.Index] = None,
@@ -660,6 +669,8 @@ def create_behavior_sequence_heatmap(data: pd.DataFrame,
         结束行为类型
     pre_behavior_time : float
         行为开始前的时间
+    post_behavior_time : float
+        行为开始后的时间
     config : BehaviorHeatmapConfig
         配置对象
     pair_index : int
@@ -716,7 +727,8 @@ def create_behavior_sequence_heatmap(data: pd.DataFrame,
     
     # 计算关键时间点的位置
     sequence_start_time = start_behavior_time - pre_behavior_time
-    total_duration = end_behavior_time - sequence_start_time
+    sequence_end_time = start_behavior_time + post_behavior_time
+    total_duration = sequence_end_time - sequence_start_time
     
     # 起始行为开始位置
     start_position = len(data_ordered.index) * pre_behavior_time / total_duration
@@ -779,6 +791,7 @@ def create_average_sequence_heatmap(all_sequence_data: List[pd.DataFrame],
                                   start_behavior: str,
                                   end_behavior: str,
                                   pre_behavior_time: float,
+                                  post_behavior_time: float,
                                   config: BehaviorHeatmapConfig,
                                   global_neuron_order: Optional[pd.Index] = None,
                                   first_heatmap_order: Optional[pd.Index] = None) -> plt.Figure:
@@ -1143,6 +1156,7 @@ def main():
                 sequence_start_time,
                 sequence_end_time,
                 config.PRE_BEHAVIOR_TIME,
+                config.POST_BEHAVIOR_TIME,
                 config.SAMPLING_RATE
             )
             
@@ -1167,6 +1181,7 @@ def main():
                 config.START_BEHAVIOR,
                 config.END_BEHAVIOR,
                 config.PRE_BEHAVIOR_TIME,
+                config.POST_BEHAVIOR_TIME,
                 config,
                 i,
                 global_neuron_order,
@@ -1202,6 +1217,7 @@ def main():
                 config.START_BEHAVIOR,
                 config.END_BEHAVIOR,
                 config.PRE_BEHAVIOR_TIME,
+                config.POST_BEHAVIOR_TIME,
                 config,
                 global_neuron_order,
                 first_heatmap_order
@@ -1242,7 +1258,7 @@ if __name__ == "__main__":
        def __init__(self):
            self.START_BEHAVIOR = 'Eat-seed-kernels'  # 起始行为
            self.END_BEHAVIOR = 'Eat-seed-kernels'    # 结束行为（同一行为）
-           self.PRE_BEHAVIOR_TIME = 10.0             # 行为开始前10秒
+           self.PRE_BEHAVIOR_TIME = 15.0             # 行为开始前15秒
            self.SAMPLING_RATE = 4.8                  # 采样率（Hz）
            self.INIT_CONFIG_PRIORITY = True
    ```
@@ -1253,7 +1269,7 @@ if __name__ == "__main__":
        def __init__(self):
            self.START_BEHAVIOR = 'Groom'           # 从梳理行为开始前10秒
            self.END_BEHAVIOR = 'Water'             # 到饮水行为结束
-           self.PRE_BEHAVIOR_TIME = 10.0           # 行为开始前10秒
+           self.PRE_BEHAVIOR_TIME = 15.0           # 行为开始前15秒
            self.SAMPLING_RATE = 4.8                # 采样率（Hz）
            self.INIT_CONFIG_PRIORITY = True
    ```
@@ -1261,7 +1277,7 @@ if __name__ == "__main__":
 3. 命令行使用示例：
    ```bash
    # 分析同一行为（使用全局排序）
-   python heatmap_behavior.py --start-behavior "Crack-seeds-shells" --end-behavior "Crack-seeds-shells" --pre-behavior-time 10 --sorting-method global
+   python heatmap_behavior.py --start-behavior "Crack-seeds-shells" --end-behavior "Crack-seeds-shells" --pre-behavior-time 15 --sorting-method global
 
    # 分析不同行为序列（使用局部排序）
    python heatmap_behavior.py --start-behavior "Find-seeds" --end-behavior "Eat-seed-kernels" --pre-behavior-time 15 --sorting-method local

@@ -83,27 +83,50 @@
             </el-button>
           </div>
         </el-col>
-      </el-row>
-      
-      <el-row :gutter="20" style="margin-top: 20px;">
+        
         <el-col :xs="24" :sm="12" :md="8" :lg="8">
           <div class="feature-card card">
-            <div class="feature-icon principal-neuron">
-              <el-icon><DataAnalysis /></el-icon>
+            <div class="feature-icon trace">
+              <el-icon><DataLine /></el-icon>
             </div>
-            <h3>🧠 主神经元分析</h3>
+            <h3>📈 Trace图分析</h3>
             <ul class="feature-list">
-              <li>分析神经元活动的效应大小和显著性</li>
-              <li>识别关键神经元和活动模式</li>
-              <li>生成神经元活动图和动画可视化</li>
-              <li>进行多条件间的共享神经元分析</li>
+              <li>可视化神经元活动的时间序列模式</li>
+              <li>支持多种排序方式（峰值、钙波、自定义）</li>
+              <li>集成行为数据，显示行为与神经元活动关联</li>
+              <li>生成高质量的科研图表，适合论文发表</li>
             </ul>
-            <el-button type="info" @click="$router.push('/principal-neuron')" class="feature-button">
-              开始主神经元分析
+            <el-button type="success" @click="$router.push('/trace')" class="feature-button">
+              开始Trace图分析
               <el-icon class="el-icon--right"><ArrowRight /></el-icon>
             </el-button>
           </div>
         </el-col>
+        
+        <!-- 神经元分析功能 -->
+        <el-col :xs="24" :sm="12" :md="8" :lg="6">
+          <el-card class="feature-card" shadow="hover">
+            <div class="feature-icon">
+              <el-icon><DataAnalysis /></el-icon>
+            </div>
+            <h3 class="feature-title">神经元分析</h3>
+            <p class="feature-description">
+              综合效应量分析、位置标记和主神经元识别功能，帮助识别关键神经元
+            </p>
+            <div class="feature-tags">
+              <el-tag type="success" size="small">效应量分析</el-tag>
+              <el-tag type="warning" size="small">位置标记</el-tag>
+              <el-tag type="info" size="small">主神经元识别</el-tag>
+            </div>
+            <div class="feature-actions">
+              <el-button type="primary" @click="$router.push('/neuron-analysis')">
+                开始神经元分析
+                <el-icon class="el-icon--right"><ArrowRight /></el-icon>
+              </el-button>
+            </div>
+          </el-card>
+        </el-col>
+        
       </el-row>
     </div>
 
@@ -209,7 +232,8 @@ import {
   Lightning,
   View,
   Files,
-  TrendCharts
+  TrendCharts,
+  DataLine
 } from '@element-plus/icons-vue'
 </script>
 
@@ -306,6 +330,11 @@ import {
 .feature-icon.heatmap {
   background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
 }
+
+.feature-icon.trace {
+  background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+}
+
 
 .feature-card h3 {
   font-size: 20px;

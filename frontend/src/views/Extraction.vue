@@ -1295,10 +1295,64 @@ let resizeTimer = null
   margin-top: 10px;
 }
 
+.card {
+  background: #fff;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e4e7ed;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+  color: #303133;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.params-panel {
+  height: fit-content;
+  position: sticky;
+  top: 20px;
+}
+
 .param-help {
   font-size: 12px;
   color: #909399;
   margin-top: 4px;
+}
+
+/* 统一的表单项样式 */
+:deep(.el-form) {
+  margin-bottom: 0;
+}
+
+:deep(.el-form-item) {
+  margin-bottom: 18px;
+}
+
+:deep(.el-form-item__label) {
+  font-weight: 500;
+  color: #606266;
+}
+
+:deep(.el-input-number) {
+  width: 100%;
+}
+
+:deep(.el-select) {
+  width: 100%;
+}
+
+:deep(.el-input) {
+  width: 100%;
+}
+
+:deep(.el-slider) {
+  width: 100%;
 }
 
 .upload-section {

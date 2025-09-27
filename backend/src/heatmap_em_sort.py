@@ -106,6 +106,8 @@ def load_and_preprocess_data(data: pd.DataFrame, config: EMSortHeatmapConfig) ->
         neural_data = data.copy()
     
     # 时间区间筛选
+    # 只有当用户明确设置了时间范围时才进行筛选
+    # 如果两个参数都为None，则使用整个数据范围
     if config.stamp_min is not None or config.stamp_max is not None:
         min_stamp = config.stamp_min if config.stamp_min is not None else neural_data.index.min()
         max_stamp = config.stamp_max if config.stamp_max is not None else neural_data.index.max()
@@ -348,7 +350,17 @@ def create_behavior_colormap() -> Dict[str, str]:
         'Sleep': '#2F4F4F',                 # 深灰绿色
         'Wake': '#FFD700',                  # 金色
         'zone-out': '#708090',              # 石板灰
-        'CD1': '#FF1493'                    # 深粉色 - CD1特殊标记
+        'CD1': '#FF1493',                   # 深粉色 - CD1特殊标记
+        
+        # 处理后的数据文件中的行为标签
+        'Exp': '#FF6B6B',                   # 珊瑚红 - 探索行为
+        'Gro': '#4ECDC4',                   # 青绿色 - 梳理行为
+        'Clim': '#45B7D1',                  # 天蓝色 - 攀爬行为
+        'Sta': '#96CEB4',                   # 薄荷绿 - 站立行为
+        'Scra': '#FFEAA7',                  # 淡黄色 - 抓挠行为
+        'Stiff': '#DDA0DD',                 # 李子色 - 僵硬行为
+        'Trem': '#98D8C8',                  # 浅绿色 - 颤抖行为
+        'Turn': '#F7DC6F'                   # 金黄色 - 转身行为
     }
 
 

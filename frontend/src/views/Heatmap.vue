@@ -102,6 +102,18 @@
                   <div class="param-help">单位：秒</div>
                 </el-form-item>
                 
+                <el-form-item label="行为后时间">
+                  <el-input-number
+                    v-model="behaviorParams.post_behavior_time"
+                    :min="1"
+                    :max="120"
+                    :step="1"
+                    :precision="1"
+                    style="width: 100%"
+                  />
+                  <div class="param-help">单位：秒</div>
+                </el-form-item>
+                
                 <el-form-item label="采样频率">
                   <el-input-number
                     v-model="behaviorParams.sampling_rate"
@@ -249,9 +261,8 @@
                     :step="1"
                     :precision="2"
                     style="width: 100%"
-                    placeholder="留空表示从头开始"
+                    placeholder="留空表示从数据开始"
                   />
-                  <div class="param-help">开始时间戳</div>
                 </el-form-item>
                 
                 <el-form-item label="时间范围结束">
@@ -261,9 +272,8 @@
                     :step="1"
                     :precision="2"
                     style="width: 100%"
-                    placeholder="留空表示到结尾"
+                    placeholder="留空表示到数据结尾"
                   />
-                  <div class="param-help">结束时间戳</div>
                 </el-form-item>
                 
                 <el-form-item label="排序方式">
@@ -739,15 +749,16 @@ const behaviorOptions = ref([...defaultBehaviorOptions])
 const behaviorParams = reactive({
   start_behavior: 'Explore',
   end_behavior: 'Water',
-  pre_behavior_time: 10.0,
+  pre_behavior_time: 15.0,
+  post_behavior_time: 45.0,
   sampling_rate: 4.8,
   min_behavior_duration: 1.0
 })
 
 // EM排序热力图参数
 const emSortParams = reactive({
-  stamp_min: null,
-  stamp_max: null,
+  stamp_min: null,  // 不填时使用整个数据范围
+  stamp_max: null,  // 不填时使用整个数据范围
   sort_method: 'peak',
   custom_neuron_order: '',
   sampling_rate: 4.8,
@@ -918,6 +929,11 @@ const handleBehaviorFileRemove = (file, fileList) => {
 
 const handleEmSortFileChange = async (file, fileList) => {
   emSortFileList.value = fileList
+  
+  if (fileList.length > 0) {
+    // 文件上传成功，可以开始分析
+    ElMessage.success('文件上传成功，可以开始EM排序分析')
+  }
 }
 
 const handleEmSortFileRemove = (file, fileList) => {
@@ -962,6 +978,7 @@ const startBehaviorAnalysis = async () => {
     formData.append('start_behavior', behaviorParams.start_behavior)
     formData.append('end_behavior', behaviorParams.end_behavior)
     formData.append('pre_behavior_time', behaviorParams.pre_behavior_time)
+    formData.append('post_behavior_time', behaviorParams.post_behavior_time)
     formData.append('min_duration', behaviorParams.min_behavior_duration)
     formData.append('sampling_rate', behaviorParams.sampling_rate)
     
@@ -1004,20 +1021,18 @@ const startEmSortAnalysis = async () => {
     const formData = new FormData()
     formData.append('file', emSortFileList.value[0].raw)
     
-    // 只有当值不为null且不为undefined时才添加参数
-    if (emSortParams.stamp_min !== null && emSortParams.stamp_min !== undefined) {
-      formData.append('stamp_min', emSortParams.stamp_min.toString())
+    // 只有当值不为null时才添加到FormData中
+    if (emSortParams.stamp_min !== null) {
+      formData.append('stamp_min', emSortParams.stamp_min)
     }
-    if (emSortParams.stamp_max !== null && emSortParams.stamp_max !== undefined) {
-      formData.append('stamp_max', emSortParams.stamp_max.toString())
+    if (emSortParams.stamp_max !== null) {
+      formData.append('stamp_max', emSortParams.stamp_max)
     }
     
     formData.append('sort_method', emSortParams.sort_method)
-    
     if (emSortParams.custom_neuron_order) {
       formData.append('custom_neuron_order', emSortParams.custom_neuron_order)
     }
-    
     formData.append('sampling_rate', emSortParams.sampling_rate.toString())
     formData.append('calcium_wave_threshold', emSortParams.calcium_wave_threshold.toString())
     formData.append('min_prominence', emSortParams.min_prominence.toString())
@@ -1149,18 +1164,49 @@ const openSingleHeatmapModal = (imageUrl, title) => {
 }
 
 .section-title {
-  color: #409eff;
-  margin-bottom: 15px;
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 16px;
+  margin-bottom: 20px;
+  color: #303133;
+  font-size: 18px;
+  font-weight: bold;
 }
 
 .param-help {
   font-size: 12px;
   color: #909399;
-  margin-top: 2px;
+  margin-top: 4px;
+}
+
+/* 统一的表单项样式 */
+:deep(.el-form) {
+  margin-bottom: 0;
+}
+
+:deep(.el-form-item) {
+  margin-bottom: 18px;
+}
+
+:deep(.el-form-item__label) {
+  font-weight: 500;
+  color: #606266;
+}
+
+:deep(.el-input-number) {
+  width: 100%;
+}
+
+:deep(.el-select) {
+  width: 100%;
+}
+
+:deep(.el-input) {
+  width: 100%;
+}
+
+:deep(.el-slider) {
+  width: 100%;
 }
 
 .analysis-controls {

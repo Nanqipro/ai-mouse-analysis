@@ -186,12 +186,66 @@ export const clusteringAPI = {
   }
 }
 
+// Trace图相关API
+export const traceAPI = {
+  // 生成Trace图
+  analyze(formData) {
+    return api.post('/trace/analyze', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      },
+      timeout: 600000 // 10分钟超时
+    })
+  }
+}
+
 // 文件下载API
 export const downloadAPI = {
   // 下载文件
   downloadFile(filename) {
     return api.get(`/download/${filename}`, {
       responseType: 'blob'
+    })
+  }
+}
+
+// 神经元分析API
+export const neuronAPI = {
+  // 效应量分析
+  effectSize: (formData) => {
+    return api.post('/neuron/effect-size', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+  },
+  
+  // 位置分析
+  position: (positionsData) => {
+    const formData = new FormData()
+    formData.append('positions_data', JSON.stringify(positionsData))
+    return api.post('/neuron/position', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+  },
+  
+  // 主神经元分析
+  principalAnalysis: (formData) => {
+    return api.post('/neuron/principal-analysis', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+  },
+  
+  // 综合分析
+  comprehensiveAnalysis: (formData) => {
+    return api.post('/neuron/comprehensive-analysis', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
     })
   }
 }

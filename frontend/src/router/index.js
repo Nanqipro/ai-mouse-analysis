@@ -3,7 +3,8 @@ import Home from '../views/Home.vue'
 import Extraction from '../views/Extraction.vue'
 import Clustering from '../views/Clustering.vue'
 import Heatmap from '../views/Heatmap.vue'
-import PrincipalNeuron from '../views/PrincipalNeuron.vue'
+import Trace from '../views/Trace.vue'
+import NeuronAnalysis from '../views/NeuronAnalysis.vue'
 
 const routes = [
   {
@@ -39,13 +40,21 @@ const routes = [
     }
   },
   {
-    path: '/principal-neuron',
-    name: 'PrincipalNeuron',
-    component: PrincipalNeuron,
+    path: '/trace',
+    name: 'Trace',
+    component: Trace,
     meta: {
-      title: '主神经元分析'
+      title: '神经元活动Trace图'
     }
-  }
+  },
+  {
+    path: '/neuron-analysis',
+    name: 'NeuronAnalysis',
+    component: NeuronAnalysis,
+    meta: {
+      title: '神经元分析'
+    }
+  },
 ]
 
 const router = createRouter({

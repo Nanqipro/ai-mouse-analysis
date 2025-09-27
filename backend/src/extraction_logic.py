@@ -13,9 +13,9 @@ from typing import List, Dict, Any, Tuple, Optional
 
 def detect_calcium_transients(data, fs=4.8, params=None):
     """
-    Detects calcium transients in calcium imaging data.
-    All parameters are passed via the 'params' dictionary.
-    This version uses derivative for start point and exponential fit for end point.
+    检测钙成像数据中的钙瞬变。
+    所有参数通过'params'字典传递。
+    此版本使用导数检测起始点，使用指数拟合检测结束点。
     """
     default_params = {
         'min_snr': 3.5, 'min_duration': 12, 'smooth_window': 31, 'peak_distance': 24,
@@ -30,7 +30,7 @@ def detect_calcium_transients(data, fs=4.8, params=None):
     run_params = default_params.copy()
     run_params.update(params)
 
-    # Use local variables for easier access
+    # 使用局部变量以便于访问
     p = run_params
     min_snr, min_duration, smooth_window, peak_distance = p['min_snr'], p['min_duration'], p['smooth_window'], p['peak_distance']
     baseline_percentile, max_duration, filter_strength = p['baseline_percentile'], p['max_duration'], p['filter_strength']
@@ -45,7 +45,7 @@ def detect_calcium_transients(data, fs=4.8, params=None):
     if noise_level == 0:
         noise_level = 1e-9
 
-    # --- Start point detection setup ---
+    # --- 起始点检测设置 ---
     dF_dt = np.gradient(smoothed_data)
     baseline_deriv_mask = smoothed_data < np.percentile(smoothed_data, 50)
     baseline_derivative = dF_dt[baseline_deriv_mask]
@@ -53,7 +53,7 @@ def detect_calcium_transients(data, fs=4.8, params=None):
     deriv_std = np.std(baseline_derivative)
     deriv_threshold = deriv_mean + start_deriv_threshold_sd * deriv_std
 
-    # --- Peak detection ---
+    # --- 峰值检测 ---
     threshold = baseline + min_snr * noise_level
     prominence_threshold = noise_level * 1.2 * filter_strength
     min_width_frames = min_duration // 6
@@ -62,21 +62,63 @@ def detect_calcium_transients(data, fs=4.8, params=None):
     if len(peaks) == 0:
         return [], smoothed_data
 
-    # --- End point detection setup ---
+    # --- 结束点检测设置 ---
     def exp_decay(t, A, tau, C):
         return A * np.exp(-t / tau) + C
         
     transients = []
     for i, peak_idx in enumerate(peaks):
-        # --- New start point detection ---
+        # --- 起始点检测：从峰值向左查找 ---
         start_idx = peak_idx
+        # 对于第一个峰值，允许搜索到数据开始；对于后续峰值，限制在前一个峰值之后
         left_limit = 0 if i == 0 else peaks[i-1]
+        
+        # 从峰值向左搜索，寻找信号开始上升的点
         while start_idx > left_limit:
+            # 检查导数是否小于阈值（表示信号开始上升）
             if dF_dt[start_idx] < deriv_threshold:
                 break
             start_idx -= 1
         
-        # --- New end point detection ---
+        # 进一步向左搜索，找到信号真正开始上升的起点
+        # 寻找信号值接近基线或开始上升的点
+        # 对于第一个峰值，如果信号在数据开始就很高，需要更智能的检测
+        if i == 0:
+            # 对于第一个峰值，寻找信号真正开始上升的起点
+            # 如果当前起始点仍然很高，继续向左搜索直到找到更合适的起始点
+            original_start = start_idx
+            while start_idx > left_limit and smoothed_data[start_idx] > baseline * 1.1:
+                # 检查是否找到了局部最小值或信号开始上升的点
+                if start_idx > left_limit + 1:
+                    # 检查前一个点是否更低，如果是则继续
+                    if smoothed_data[start_idx - 1] < smoothed_data[start_idx]:
+                        start_idx -= 1
+                    else:
+                        # 如果前一个点更高，检查是否找到了合适的起始点
+                        # 寻找从当前位置向左的局部最小值
+                        search_start = max(left_limit, start_idx - 10)  # 向前搜索最多10个点
+                        if search_start < start_idx:
+                            local_min_idx = search_start + np.argmin(smoothed_data[search_start:start_idx+1])
+                            if smoothed_data[local_min_idx] < smoothed_data[start_idx] * 0.8:  # 如果局部最小值明显更低
+                                start_idx = local_min_idx
+                        break
+                else:
+                    break
+            
+            # 如果搜索后起始点仍然在数据开始且信号很高，尝试找到更好的起始点
+            if start_idx == left_limit and smoothed_data[start_idx] > baseline * 1.5:
+                # 在峰值前寻找最低点作为起始点
+                search_range = min(20, peak_idx - left_limit)  # 搜索范围不超过20个点
+                if search_range > 0:
+                    min_idx = left_limit + np.argmin(smoothed_data[left_limit:left_limit + search_range])
+                    if smoothed_data[min_idx] < smoothed_data[start_idx] * 0.9:  # 如果找到明显更低的点
+                        start_idx = min_idx
+        else:
+            # 对于后续峰值，使用原来的逻辑
+            while start_idx > left_limit and smoothed_data[start_idx] > baseline * 1.1:
+                start_idx -= 1
+        
+        # --- 新的结束点检测 ---
         prelim_end_idx = peak_idx
         right_limit = len(smoothed_data) - 1 if i == len(peaks) - 1 else peaks[i+1]
         while prelim_end_idx < right_limit and smoothed_data[prelim_end_idx] > baseline:
@@ -103,17 +145,21 @@ def detect_calcium_transients(data, fs=4.8, params=None):
             except (RuntimeError, ValueError):
                 pass
         
-        # Final checks on boundaries
+        # 边界最终检查
         if i < len(peaks) - 1 and end_idx >= peaks[i+1]:
+            # 如果结束点超过了下一个峰值，使用两个峰值之间的最低点
             end_idx = peak_idx + np.argmin(smoothed_data[peak_idx:peaks[i+1]])
+        
         if i > 0 and start_idx <= peaks[i-1]:
-            start_idx = peaks[i-1] + np.argmin(smoothed_data[peaks[i-1]:peak_idx])
+            # 如果起始点在前一个峰值之前或等于前一个峰值，使用两个峰值之间的最低点
+            valley_idx = peaks[i-1] + np.argmin(smoothed_data[peaks[i-1]:peak_idx])
+            start_idx = valley_idx
 
         duration_frames = end_idx - start_idx
         if not (min_duration <= duration_frames <= max_duration):
             continue
             
-        # Feature calculation
+        # 特征计算
         amplitude = smoothed_data[peak_idx] - baseline
         widths_info = peak_widths(smoothed_data, [peak_idx], rel_height=0.5)
 
@@ -133,6 +179,18 @@ def detect_calcium_transients(data, fs=4.8, params=None):
     return transients, smoothed_data
 
 def extract_calcium_features(neuron_data, fs=4.8, visualize=False, params=None):
+    """
+    提取钙信号特征
+    
+    Args:
+        neuron_data: 神经元数据
+        fs: 采样频率，默认4.8Hz
+        visualize: 是否生成可视化图表
+        params: 参数字典
+    
+    Returns:
+        特征表格、图表对象、平滑数据
+    """
     if params is None:
         params = {}
     transients, smoothed_data = detect_calcium_transients(neuron_data, fs=fs, params=params)
@@ -145,21 +203,66 @@ def extract_calcium_features(neuron_data, fs=4.8, visualize=False, params=None):
     return feature_table, None, smoothed_data
 
 def visualize_calcium_transients(raw_data, smoothed_data, transients, fs=4.8):
+    """
+    可视化钙瞬变检测结果
+    
+    Args:
+        raw_data: 原始数据
+        smoothed_data: 平滑数据
+        transients: 检测到的瞬变列表
+        fs: 采样频率
+    
+    Returns:
+        图表对象
+    """
+    # 设置中文字体支持
+    plt.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei', 'DejaVu Sans', 'Arial Unicode MS']
+    plt.rcParams['axes.unicode_minus'] = False  # 解决负号显示问题
+    plt.rcParams['font.size'] = 10  # 设置字体大小
+    
     fig, ax = plt.subplots(figsize=(20, 6))
     time_axis = np.arange(len(raw_data)) / fs
-    ax.plot(time_axis, raw_data, color='grey', alpha=0.6, label='Raw Signal')
-    ax.plot(time_axis, smoothed_data, color='blue', label='Smoothed Signal')
-    for transient in transients:
+    ax.plot(time_axis, raw_data, color='grey', alpha=0.6, label='原始信号')
+    ax.plot(time_axis, smoothed_data, color='blue', label='平滑信号')
+    for i, transient in enumerate(transients):
         start_time, peak_time, end_time = transient['start']/fs, transient['peak']/fs, transient['end']/fs
-        ax.axvspan(start_time, end_time, color='yellow', alpha=0.3)
-        ax.plot(peak_time, smoothed_data[transient['peak']], 'rv')
-    ax.set_title("Detected Calcium Transients")
-    ax.set_xlabel(f"Time (seconds, fs={fs}Hz)")
-    ax.set_ylabel("Fluorescence (a.u.)")
+        
+        # 绘制黄色事件特征区域（从起始点到结束点）
+        ax.axvspan(start_time, end_time, color='yellow', alpha=0.3, label='事件特征区域' if i == 0 else "")
+        
+        # 标记峰值（红色圆点）
+        ax.plot(peak_time, smoothed_data[transient['peak']], 'ro', markersize=6, label='峰值' if i == 0 else "")
+        
+        # 标记起始点（绿色竖线）
+        ax.axvline(x=start_time, color='green', linestyle='--', alpha=0.8, linewidth=2, label='起始点' if i == 0 else "")
+        
+        # 标记结束点（蓝色竖线）
+        ax.axvline(x=end_time, color='blue', linestyle='--', alpha=0.8, linewidth=2, label='结束点' if i == 0 else "")
+        
+        # 在起始点添加文本标注
+        ax.text(start_time, smoothed_data[transient['start']], f'起始{i+1}', 
+                fontsize=8, color='green', ha='center', va='bottom')
+    ax.set_title("检测到的钙瞬变")
+    ax.set_xlabel(f"时间 (秒, fs={fs}Hz)")
+    ax.set_ylabel("荧光强度 (a.u.)")
     ax.legend()
     return fig
 
 def analyze_all_neurons_transients(data_df, neuron_columns, fs=4.8, start_id=1, file_info=None, params=None):
+    """
+    分析所有神经元的钙瞬变
+    
+    Args:
+        data_df: 数据DataFrame
+        neuron_columns: 神经元列名列表
+        fs: 采样频率
+        start_id: 起始事件ID
+        file_info: 文件信息字典
+        params: 参数字典
+    
+    Returns:
+        合并的特征表格和下一个起始ID
+    """
     all_transients = []
     for neuron in neuron_columns:
         feature_table, _, _ = extract_calcium_features(data_df[neuron].values, fs=fs, params=params)
@@ -264,7 +367,11 @@ def extract_manual_range(file_path: str, neuron_id: str, start_time: float, end_
             adjusted_transient['end'] = int(transient['end'] + start_idx)
             adjusted_transient['amplitude'] = float(transient['amplitude'])
             adjusted_transient['duration'] = float(transient['duration'])
-            adjusted_transient['fwhm'] = float(transient['fwhm']) if not np.isnan(transient['fwhm']) else None
+            try:
+                fwhm_val = float(transient['fwhm'])
+                adjusted_transient['fwhm'] = fwhm_val if not np.isnan(fwhm_val) else None
+            except (ValueError, TypeError):
+                adjusted_transient['fwhm'] = None
             adjusted_transient['rise_time'] = float(transient['rise_time'])
             adjusted_transient['decay_time'] = float(transient['decay_time'])
             adjusted_transient['auc'] = float(transient['auc'])
@@ -303,6 +410,18 @@ def extract_manual_range(file_path: str, neuron_id: str, start_time: float, end_
         }
 
 def run_batch_extraction(file_paths, output_dir, fs=4.8, **kwargs):
+    """
+    批量提取钙信号特征
+    
+    Args:
+        file_paths: 文件路径列表
+        output_dir: 输出目录
+        fs: 采样频率
+        **kwargs: 其他参数
+    
+    Returns:
+        输出文件路径
+    """
     all_results = []
     current_event_id = 1
     for file_path in file_paths:
@@ -324,7 +443,7 @@ def run_batch_extraction(file_paths, output_dir, fs=4.8, **kwargs):
                 all_results.append(result_df)
                 current_event_id = next_start_id
         except Exception as e:
-            print(f"Error processing file {os.path.basename(file_path)}: {e}")
+            print(f"处理文件 {os.path.basename(file_path)} 时出错: {e}")
             continue
     if not all_results:
         return None

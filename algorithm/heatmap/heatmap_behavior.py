@@ -1146,10 +1146,10 @@ def main():
              # 指定顺序已配置
              # 剩余神经元将按字符串大小顺序排列在指定神经元下方
              pass
-         elif config.SORTING_METHOD == 'first':
+        elif config.SORTING_METHOD == 'first':
              # 使用首图排序模式，将以第一个热图的排序为基准，后续热图使用相同神经元顺序
              pass
-         else:
+        else:
              # 使用局部排序模式，每个热图将根据当前时间窗口内的峰值时间独立排序
              pass
         
