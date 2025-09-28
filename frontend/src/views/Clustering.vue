@@ -1,7 +1,7 @@
 <template>
   <div class="clustering">
     <h1 class="page-title">
-      <el-icon><Histogram /></el-icon>
+      <el-icon><PieChart /></el-icon>
       聚类分析
     </h1>
     
@@ -539,9 +539,8 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
-  Histogram,
-  Setting,
   PieChart,
+  Setting,
   TrendCharts,
   DataLine,
   Download,

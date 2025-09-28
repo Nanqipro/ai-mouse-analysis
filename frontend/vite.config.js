@@ -30,11 +30,6 @@ export default defineConfig({
     },
     headers: {
       'Cache-Control': 'no-cache'
-    },
-    allowedHosts: [
-      'localhost',
-      '127.0.0.1',
-      '102qldp675617.vicp.fun'
-    ]
+    }
   }
 })

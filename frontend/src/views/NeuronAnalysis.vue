@@ -1,18 +1,27 @@
 <template>
   <div class="neuron-analysis">
-    <el-container>
-      <!-- 页面标题 -->
-      <el-header class="page-header">
-        <h1 class="page-title">
-          <el-icon><DataAnalysis /></el-icon>
-          神经元分析
-        </h1>
-        <p class="page-description">
-          两步式工作流程：效应量分析 → 位置标记 → 综合分析
-        </p>
-      </el-header>
+    <h1 class="page-title">
+      <el-icon><Cpu /></el-icon>
+      神经元分析
+    </h1>
+    
+    <el-alert
+      title="功能说明"
+      type="info"
+      :closable="false"
+      show-icon
+      class="info-alert"
+    >
+      <template #default>
+        在此页面，您可以：<br>
+        1. <strong>效应量分析</strong>: 计算神经元与行为的效应量，识别关键神经元。<br>
+        2. <strong>位置标记</strong>: 在图像上标记神经元空间位置，建立空间分布图。<br>
+        3. <strong>综合分析</strong>: 结合效应量和位置数据，生成综合的神经元活动分析图。<br>
+        <strong>数据格式要求</strong>: Excel文件需包含神经元活动数据和行为标签列。
+      </template>
+    </el-alert>
 
-      <el-container>
+    <el-container>
         <!-- 左侧工作流程面板 -->
         <el-aside :width="sidebarWidth" class="workflow-panel">
           <!-- 工作流程步骤指示器 -->
@@ -398,7 +407,6 @@
           </div>
         </el-main>
       </el-container>
-    </el-container>
   </div>
 </template>
 
@@ -406,7 +414,7 @@
 import { ref, reactive, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
-  DataAnalysis, 
+  Cpu, 
   Setting, 
   Upload, 
   UploadFilled, 
@@ -425,7 +433,7 @@ import PositionMarker from '@/components/PositionMarker.vue'
 export default {
   name: 'NeuronAnalysis',
   components: {
-    DataAnalysis,
+    Cpu,
     Setting,
     Upload,
     UploadFilled,
@@ -697,11 +705,7 @@ export default {
 
         if (response.success) {
           effectSizeResult.value = response.result
-          ElMessage.success('效应量分析完成！')
-          // 自动进入下一步
-          setTimeout(() => {
-            currentStep.value = 1
-          }, 1000)
+          ElMessage.success('效应量分析完成！请点击"下一步"继续位置标记。')
         } else {
           throw new Error(response.message || '效应量分析失败')
         }
@@ -883,27 +887,8 @@ export default {
   background-color: #f5f7fa;
 }
 
-.page-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  text-align: center;
-  padding: 20px;
-}
-
-.page-title {
-  margin: 0;
-  font-size: 28px;
-  font-weight: bold;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-}
-
-.page-description {
-  margin: 10px 0 0 0;
-  font-size: 16px;
-  opacity: 0.9;
+.info-alert {
+  margin-bottom: 20px;
 }
 
 .workflow-panel {

@@ -103,19 +103,20 @@
           </div>
         </el-col>
         
+        <!-- 神经元分析功能 -->
         <el-col :xs="24" :sm="12" :md="8" :lg="8">
           <div class="feature-card card">
             <div class="feature-icon neuron">
-              <el-icon><DataAnalysis /></el-icon>
+              <el-icon><Cpu /></el-icon>
             </div>
             <h3>🧠 神经元分析</h3>
             <ul class="feature-list">
               <li>综合效应量分析，量化神经元活动差异</li>
-              <li>位置标记功能，精确定位关键神经元</li>
-              <li>主神经元识别，发现网络中的核心节点</li>
-              <li>多维度分析，全面评估神经元特性</li>
+              <li>位置标记功能，精确定位神经元空间分布</li>
+              <li>主神经元识别，发现关键功能神经元</li>
+              <li>多维度分析，提供全面的神经元特征评估</li>
             </ul>
-            <el-button type="info" @click="$router.push('/neuron-analysis')" class="feature-button">
+            <el-button type="primary" @click="$router.push('/neuron-analysis')" class="feature-button">
               开始神经元分析
               <el-icon class="el-icon--right"><ArrowRight /></el-icon>
             </el-button>
@@ -228,7 +229,8 @@ import {
   View,
   Files,
   TrendCharts,
-  DataLine
+  DataLine,
+  Cpu
 } from '@element-plus/icons-vue'
 </script>
 
@@ -331,7 +333,7 @@ import {
 }
 
 .feature-icon.neuron {
-  background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
 }
 
 
