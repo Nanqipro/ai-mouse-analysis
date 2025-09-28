@@ -103,28 +103,23 @@
           </div>
         </el-col>
         
-        <!-- 神经元分析功能 -->
-        <el-col :xs="24" :sm="12" :md="8" :lg="6">
-          <el-card class="feature-card" shadow="hover">
-            <div class="feature-icon">
+        <el-col :xs="24" :sm="12" :md="8" :lg="8">
+          <div class="feature-card card">
+            <div class="feature-icon neuron">
               <el-icon><DataAnalysis /></el-icon>
             </div>
-            <h3 class="feature-title">神经元分析</h3>
-            <p class="feature-description">
-              综合效应量分析、位置标记和主神经元识别功能，帮助识别关键神经元
-            </p>
-            <div class="feature-tags">
-              <el-tag type="success" size="small">效应量分析</el-tag>
-              <el-tag type="warning" size="small">位置标记</el-tag>
-              <el-tag type="info" size="small">主神经元识别</el-tag>
-            </div>
-            <div class="feature-actions">
-              <el-button type="primary" @click="$router.push('/neuron-analysis')">
-                开始神经元分析
-                <el-icon class="el-icon--right"><ArrowRight /></el-icon>
-              </el-button>
-            </div>
-          </el-card>
+            <h3>🧠 神经元分析</h3>
+            <ul class="feature-list">
+              <li>综合效应量分析，量化神经元活动差异</li>
+              <li>位置标记功能，精确定位关键神经元</li>
+              <li>主神经元识别，发现网络中的核心节点</li>
+              <li>多维度分析，全面评估神经元特性</li>
+            </ul>
+            <el-button type="info" @click="$router.push('/neuron-analysis')" class="feature-button">
+              开始神经元分析
+              <el-icon class="el-icon--right"><ArrowRight /></el-icon>
+            </el-button>
+          </div>
         </el-col>
         
       </el-row>
@@ -333,6 +328,10 @@ import {
 
 .feature-icon.trace {
   background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+}
+
+.feature-icon.neuron {
+  background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
 }
 
 
