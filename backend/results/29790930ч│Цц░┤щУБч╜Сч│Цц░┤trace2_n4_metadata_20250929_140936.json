@@ -1,0 +1,18 @@
+{
+  "original_file": "29790930糖水铁网糖水trace2.xlsx",
+  "neuron": "n4",
+  "total_features": 48,
+  "manual_features": 29,
+  "auto_features": 19,
+  "extraction_params": {
+    "fs": 4.8,
+    "min_duration_frames": 12,
+    "max_duration_frames": 800,
+    "min_snr": 3.5,
+    "smooth_window": 31,
+    "peak_distance_frames": 24,
+    "filter_strength": 1
+  },
+  "created_at": "2025-09-29T14:09:36.212557",
+  "file_type": "single_neuron_preview"
+}

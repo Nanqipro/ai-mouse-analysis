@@ -11,7 +11,7 @@ import json
 from pathlib import Path
 
 # 导入核心逻辑模块
-from src.extraction_logic import run_batch_extraction, extract_calcium_features, get_interactive_data, extract_manual_range
+from src.extraction_logic import run_batch_extraction, extract_calcium_features, get_interactive_data, extract_manual_range, detect_from_peak
 from src.clustering_logic import (
     load_data,
     enhance_preprocess_data,
@@ -351,6 +351,52 @@ async def get_interactive_extraction_data(
             temp_file.unlink()
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/api/extraction/detect_from_peak")
+async def detect_from_peak_endpoint(
+    file: UploadFile = File(...),
+    neuron_id: str = Form(...),
+    peak_time: float = Form(...),
+    fs: float = Form(4.8),
+    min_duration_frames: int = Form(12),
+    max_duration_frames: int = Form(800),
+    min_snr: float = Form(3.5),
+    smooth_window: int = Form(31),
+    peak_distance_frames: int = Form(24),
+    filter_strength: float = Form(1.0)
+):
+    """从峰值点自动检测事件特征"""
+    try:
+        # 保存上传的文件
+        temp_file = TEMP_DIR / f"temp_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{file.filename}"
+        with open(temp_file, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        # 构建参数字典
+        params = {
+            'min_duration': min_duration_frames,
+            'max_duration': max_duration_frames,
+            'min_snr': min_snr,
+            'smooth_window': smooth_window,
+            'peak_distance': peak_distance_frames,
+            'filter_strength': filter_strength,
+            'baseline_percentile': 8,
+            'search_window_frames': 200
+        }
+        
+        # 执行从峰值检测
+        result = detect_from_peak(str(temp_file), neuron_id, peak_time, fs, params)
+        
+        # 清理临时文件
+        temp_file.unlink()
+        
+        return result
+        
+    except Exception as e:
+        # 清理临时文件
+        if 'temp_file' in locals() and temp_file.exists():
+            temp_file.unlink()
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/api/extraction/manual_extract")
 async def manual_extraction(
     file: UploadFile = File(...),
@@ -375,11 +421,11 @@ async def manual_extraction(
         # 构建参数字典
         params = {
             'fs': fs,
-            'min_duration_frames': min_duration_frames,
-            'max_duration_frames': max_duration_frames,
+            'min_duration': min_duration_frames,
+            'max_duration': max_duration_frames,
             'min_snr': min_snr,
             'smooth_window': smooth_window,
-            'peak_distance_frames': peak_distance_frames,
+            'peak_distance': peak_distance_frames,
             'filter_strength': filter_strength
         }
         
@@ -393,7 +439,7 @@ async def manual_extraction(
         
     except Exception as e:
         # 清理临时文件
-        if temp_file.exists():
+        if 'temp_file' in locals() and temp_file.exists():
             temp_file.unlink()
         raise HTTPException(status_code=500, detail=str(e))
 
