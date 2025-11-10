@@ -69,6 +69,18 @@ export const extractionAPI = {
     })
   },
   
+  // 从峰值点自动检测事件特征
+  detectFromPeak(formData) {
+    return api.post('/extraction/detect_from_peak', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      },
+      maxContentLength: 100 * 1024 * 1024,
+      maxBodyLength: 100 * 1024 * 1024,
+      timeout: 300000
+    })
+  },
+  
   // 基于用户选择的时间范围进行手动提取
   manualExtract(formData) {
     return api.post('/extraction/manual_extract', formData, {
